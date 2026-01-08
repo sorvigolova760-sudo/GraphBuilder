@@ -14,7 +14,7 @@ def build_ui(app_instance):
     # === Верхняя панель ===
     top_panel = MDBoxLayout(orientation="vertical", size_hint=(1, None), height=dp(150), spacing=dp(10))
     title = MDLabel(
-        text="📈 Построитель графиков функций",
+        text="Построитель графиков функций",
         halign="center", font_style="H5", size_hint=(1, None), height=dp(40)
     )
     top_panel.add_widget(title)
@@ -22,7 +22,7 @@ def build_ui(app_instance):
     input_layout = MDBoxLayout(orientation="horizontal", spacing=dp(10))
     app_instance.func_input = MDTextField(
         text="x**2",
-        hint_text="Введите функцию, например: x**2 или sin(x)",
+        hint_text="Введите функцию",
         mode="rectangle",
         size_hint=(0.7, None),
         height=dp(50),
