@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">GraphBuilder</string>
+    <string name="private_version">1e75a6796ec13b3ec3cfb8d309b9253525bea081</string>
+    <string name="presplash_color">#000000</string>
+    <string name="urlScheme">kivy</string>
+</resources>
