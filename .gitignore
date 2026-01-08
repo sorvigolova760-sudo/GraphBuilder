@@ -1,3 +1,25 @@
-.venv/
+# Виртуальное окружение
+venv/
+ENV/
+.env
+
+# Buildozer
+.buildozer/
+bin/
+*.apk
+
+# Кэш Python
 __pycache__/
 *.pyc
+*.pyo
+*.pyd
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# ОС
+.DS_Store
+Thumbs.db
