@@ -19,7 +19,7 @@ def build_ui(app_instance):
     )
     top_panel.add_widget(title)
     input_card = MDCard(orientation="vertical", padding=dp(15), size_hint=(1, None), height=dp(100), elevation=2)
-    input_layout = MDBoxLayout(orientation="horizontal", spacing=dp(10))
+    # Поле ввода (ширина 70%)
     app_instance.func_input = MDTextField(
         text="x**2",
         hint_text="Введите функцию",
@@ -28,14 +28,40 @@ def build_ui(app_instance):
         height=dp(50),
         font_size='16sp'
     )
+
+    # Контейнер для кнопок (ширина 30%)
+    button_container = MDBoxLayout(
+        orientation="horizontal",
+        spacing=dp(5),
+        size_hint=(0.3, None),
+        height=dp(50)
+    )
+
+    # Кнопка "Построить"
     plot_btn = MDRaisedButton(
         text="Построить",
-        size_hint=(0.3, None),
+        size_hint=(0.5, None),  # Теперь 50% ширины контейнера
         height=dp(50),
         on_press=app_instance.plot_function
     )
+
+    # Кнопка "Сбросить"
+    reset_btn = MDRaisedButton(
+        text="Сбросить",
+        size_hint=(0.5, None),
+        height=dp(50),
+        on_press=app_instance.reset_function,  # ← обрати внимание: app_instance, не self!
+        md_bg_color=(0.3, 0.6, 0.3, 1)  # Зелёный оттенок
+    )
+
+    # Собираем всё вместе
+    button_container.add_widget(plot_btn)
+    button_container.add_widget(reset_btn)
+
+    # Добавляем в input_layout
+    input_layout = MDBoxLayout(orientation="horizontal", spacing=dp(10))
     input_layout.add_widget(app_instance.func_input)
-    input_layout.add_widget(plot_btn)
+    input_layout.add_widget(button_container)
     input_card.add_widget(input_layout)
     top_panel.add_widget(input_card)
     main_layout.add_widget(top_panel)

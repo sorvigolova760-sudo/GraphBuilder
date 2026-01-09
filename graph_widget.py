@@ -55,7 +55,7 @@ class GraphWidget(Widget):
         with self.canvas:
             Color(1, 1, 1, 1)
             Rectangle(pos=(square_x, square_y), size=(square_size, square_size))
-            Color(0.9, 0.9, 0.9, 0.5)
+            Color(0.6, 0.6, 0.6, 0.8)
             self._draw_grid(square_x, square_y, square_size, square_size)
             Color(0.3, 0.3, 0.3, 1)
             self._draw_axes(square_x, square_y, square_size, square_size)

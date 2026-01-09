@@ -71,6 +71,16 @@ class GraphFunctionApp(MDApp):
             import traceback
             traceback.print_exc()
 
+    def reset_function(self, *args):
+        """Сбрасывает всё к начальному состоянию"""
+        self.func_input.text = ""  # Очищаем поле ввода
+        self.x_min_input.text = "-5"
+        self.x_max_input.text = "5"
+        self.y_min_input.text = "-5"
+        self.y_max_input.text = "5"
+        self.graph.set_function(None)  # Убираем функцию → график исчезнет
+        self.graph.draw()  # Перерисовываем пустой график
+
     def set_example(self, expr, ranges):
         self.func_input.text = expr
         self.x_min_input.text = str(ranges[0])
