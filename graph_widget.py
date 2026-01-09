@@ -101,10 +101,6 @@ class GraphWidget(Widget):
         nice_fraction = min(nice_fractions, key=lambda x: abs(x - fraction))
         return nice_fraction * (10 ** exponent)
 
-    # Добавь в начало файла (после импортов):
-
-
-    # Замени метод _draw_axes на этот:
     def _draw_axes(self, area_x, area_y, area_size, area_height):
         """Рисует оси координат с подписями"""
         # Ось X (где y=0)
