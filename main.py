@@ -12,6 +12,7 @@ from kivy.clock import Clock
 import math
 from function_parser import FunctionParser
 from ui_layout import build_ui
+from kivy.core.text import Label as CoreLabel
 
 class GraphFunctionApp(MDApp):
     def build(self):
