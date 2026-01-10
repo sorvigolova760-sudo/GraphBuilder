@@ -43,53 +43,73 @@ def build_ui(app_instance):
         size_hint_y=None
     )
     content.bind(minimum_height=content.setter('height'))
+    app_instance.content_layout = content
 
-    # === Верхняя панель: ввод и кнопки ===
+   # === Верхняя панель: ввод и кнопки (две строки) ===
     input_card = MDCard(
         orientation="vertical",
-        padding=dp(15),
+        padding=dp(12),  # чуть меньше отступы
         size_hint=(1, None),
-        height=dp(100),
+        height=dp(110),  # немного выше из-за двух строк
         elevation=2
+    )
+
+    # --- Строка 1: только поле ввода ---
+    input_row1 = MDBoxLayout(
+        orientation="horizontal",
+        size_hint=(1, None),
+        height=dp(45),
+        padding=[0, 0, 0, dp(8)]  # отступ снизу
     )
     app_instance.func_input = MDTextField(
         text="x**2",
         hint_text="Введите функцию",
-        mode="rectangle",
-        size_hint=(0.7, None),
-        height=dp(50),
-        font_size='16sp'
+        mode="fill",
+        font_size='14sp'
     )
+    input_row1.add_widget(app_instance.func_input)
+    input_card.add_widget(input_row1)
 
-    button_container = MDBoxLayout(
+    # --- Строка 2: три кнопки в ряд ---
+    input_row2 = MDBoxLayout(
         orientation="horizontal",
-        spacing=dp(5),
-        size_hint=(0.3, None),
-        height=dp(50)
+        size_hint=(1, None),
+        height=dp(45),
+        spacing=dp(6)
     )
 
     plot_btn = MDRaisedButton(
-        text="Построить",
-        size_hint=(0.5, None),
-        height=dp(50),
-        on_press=app_instance.plot_function
+        text="График",
+        size_hint_x=0.33,
+        height=dp(45),
+        on_press=app_instance.plot_function,
+        font_size='12sp'
     )
 
     reset_btn = MDRaisedButton(
-        text="Сбросить",
-        size_hint=(0.5, None),
-        height=dp(50),
+        text="Сброс",
+        size_hint_x=0.33,
+        height=dp(45),
         on_press=app_instance.reset_function,
-        md_bg_color=(0.3, 0.6, 0.3, 1)
+        md_bg_color=(0.3, 0.6, 0.3, 1),
+        font_size='12sp'
     )
 
-    button_container.add_widget(plot_btn)
-    button_container.add_widget(reset_btn)
+    analyze_btn = MDRaisedButton(
+        text="Анализ",
+        size_hint_x=0.34,
+        height=dp(45),
+        on_press=app_instance.analyze_function,
+        md_bg_color=(0.2, 0.6, 0.8, 1),
+        font_size='12sp'
+    )
 
-    input_layout = MDBoxLayout(orientation="horizontal", spacing=dp(10))
-    input_layout.add_widget(app_instance.func_input)
-    input_layout.add_widget(button_container)
-    input_card.add_widget(input_layout)
+    input_row2.add_widget(plot_btn)
+    input_row2.add_widget(reset_btn)
+    input_row2.add_widget(analyze_btn)
+    input_card.add_widget(input_row2)
+
+    # Добавляем карточку в контент
     content.add_widget(input_card)
 
     # === График ===

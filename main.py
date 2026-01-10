@@ -80,6 +80,60 @@ class GraphFunctionApp(MDApp):
         self.y_max_input.text = "5"
         self.graph.set_function(None)  # Убираем функцию → график исчезнет
         self.graph.draw()  # Перерисовываем пустой график
+    
+    def analyze_function(self, *args):
+        """Выполняет анализ функции и показывает результат"""
+        try:
+            expr = self.func_input.text.strip()
+            if not expr:
+                return
+
+            # Получаем диапазоны
+            x_min = float(self.x_min_input.text)
+            x_max = float(self.x_max_input.text)
+
+            # Парсим функцию
+            parser = FunctionParser()
+            func = parser.parse(expr)
+
+            # Создаём анализатор
+            from function_analyzer import FunctionAnalyzer
+            analyzer = FunctionAnalyzer(func, expr, x_min, x_max)
+            analysis_text = analyzer.to_text()
+
+            # === Создаём карточку анализа ===
+            from kivymd.uix.card import MDCard
+            from kivymd.uix.label import MDLabel
+            from kivy.metrics import dp
+
+            # Удаляем старую карточку анализа, если есть
+            if hasattr(self, 'analysis_card') and self.analysis_card:
+                self.content_layout.remove_widget(self.analysis_card)
+
+            self.analysis_card = MDCard(
+                orientation="vertical",
+                padding=dp(15),
+                size_hint=(1, None),
+                height=dp(300),
+                elevation=2,
+                radius=[10, 10, 10, 10]
+            )
+            label = MDLabel(
+                text=analysis_text,
+                halign="left",
+                valign="top",
+                font_size="14sp",
+                theme_text_color="Primary",
+                size_hint_y=None,
+                height=dp(280)
+            )
+            self.analysis_card.add_widget(label)
+            self.content_layout.add_widget(self.analysis_card)
+
+        except Exception as e:
+            print(f"Ошибка анализа: {e}")
+            import traceback
+            traceback.print_exc()
 
     def set_example(self, expr, ranges):
         self.func_input.text = expr
