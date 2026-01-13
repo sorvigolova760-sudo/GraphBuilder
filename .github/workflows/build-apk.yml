@@ -10,9 +10,19 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Build with Buildozer
-        uses: jgillis/buildozer-action@master
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build and run Buildozer
+        run: |
+          docker run --rm \
+            -v "${{ github.workspace }}":/home/user/hostcwd \
+            -w /home/user/hostcwd \
+            crazymax/buildozer:latest \
+            bash -c "cd test_app && buildozer android debug"
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
         with:
-          workdir: test_app
-          buildozer_version: stable
-          command: buildozer android debug
+          name: android-apk
+          path: test_app/bin/*.apk
