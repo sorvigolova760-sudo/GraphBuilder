@@ -5,49 +5,23 @@ on:
     branches: [ main, master ]
   pull_request:
     branches: [ main, master ]
-  workflow_dispatch:  # Позволяет запускать вручную из GitHub UI
+  workflow_dispatch:
 
 jobs:
   build:
     runs-on: ubuntu-latest
     
     steps:
-    - name: Checkout code
+    - name: Checkout repository
       uses: actions/checkout@v4
       
-    - name: Set up Python
-      uses: actions/setup-python@v5
+    - name: Build Kivy App to APK
+      uses: digreatbrian/buildozer-action@main  # или ArtemSBulgakov/buildozer-action@v1
       with:
-        python-version: '3.11.14'  # Или ваша версия Python
+        command: buildozer android debug
         
-    - name: Install dependencies
-      run: |
-        sudo apt-get update
-        sudo apt-get install -y \
-          git \
-          zip \
-          unzip \
-          openjdk-17-jdk \
-          python3-pip \
-          python3-venv \
-          zlib1g-dev \
-          libncurses5-dev \
-          libncursesw5-dev \
-          libffi-dev \
-          libssl-dev
-          
-    - name: Build APK with Buildozer
-      uses: ArtemSBulgakov/buildozer-action@v1
-      with:
-        # Опциональные параметры:
-        command: buildozer -v android debug  # Или buildozer -v android release для релиза
-        # build_mode: debug  # debug или release
-        # target: android    # android или ios
-        # spec: buildozer.spec  # Путь к spec файлу, если не в корне
-        
-    - name: Upload APK artifact
+    - name: Upload APK
       uses: actions/upload-artifact@v4
       with:
-        name: apk-${{ github.sha }}
+        name: my-app-apk
         path: bin/*.apk
-        retention-days: 30
