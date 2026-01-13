@@ -17,7 +17,7 @@ jobs:
       - name: Set up Python 3.11
         uses: actions/setup-python@v5
         with:
-          python-version: '3.11.14'
+          python-version: '3.11'
 
       - name: Enable 2GB swap
         run: |
@@ -33,7 +33,7 @@ jobs:
             zlib1g-dev libncurses5-dev libncursesw5-dev libffi-dev libssl-dev \
             autoconf automake pkg-config cmake curl build-essential
 
-      - name: Install libtool 2.4.6 (compatible with libffi)
+      - name: Install libtool 2.4.6
         run: |
           sudo apt remove -y libtool
           cd /tmp
@@ -44,11 +44,21 @@ jobs:
           make -j$(nproc)
           sudo make install
 
+      - name: Patch aclocal to force include libtool m4
+        run: |
+          sudo mv /usr/bin/aclocal /usr/bin/aclocal.orig
+          cat > /tmp/aclocal << 'EOF'
+#!/bin/bash
+exec /usr/bin/aclocal.orig -I /usr/local/share/aclocal "$@"
+EOF
+          sudo mv /tmp/aclocal /usr/bin/aclocal
+          sudo chmod +x /usr/bin/aclocal
+
       - name: Install Cython and Buildozer
         run: |
-          pip install --user 'cython<3.0.0' buildozer
+          pip install --user cython buildozer
 
-      - name: Set up Android SDK (legacy-compatible)
+      - name: Set up Android SDK
         run: |
           export ANDROID_HOME="$HOME/.buildozer/android/platform/android-sdk"
           mkdir -p "$ANDROID_HOME"
@@ -73,8 +83,6 @@ jobs:
       - name: Build APK
         run: |
           export ANDROID_HOME="$HOME/.buildozer/android/platform/android-sdk"
-          export PATH="/usr/local/bin:$PATH"
-          export ACLOCAL_PATH="/usr/local/share/aclocal"
           ~/.local/bin/buildozer -v android debug
 
       - name: Upload APK
