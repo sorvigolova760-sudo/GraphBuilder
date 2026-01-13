@@ -17,7 +17,7 @@ jobs:
       - name: Set up Python 3.11
         uses: actions/setup-python@v5
         with:
-          python-version: '3.11'
+          python-version: '3.11.14'
 
       - name: Enable 2GB swap
         run: |
@@ -30,28 +30,8 @@ jobs:
         run: |
           sudo apt update
           sudo apt install -y git zip unzip openjdk-17-jdk python3-venv \
-            zlib1g-dev libncurses5-dev libncursesw5-dev libffi-dev libssl-dev autoconf \
-            libtool pkg-config cmake curl build-essential
-
-      - name: Install compatible autotools (fix libffi build)
-        run: |
-          sudo apt remove -y autoconf automake libtool
-          cd /tmp
-          # libtool 2.4.6
-          wget https://ftp.gnu.org/gnu/libtool/libtool-2.4.6.tar.gz
-          tar -xzf libtool-2.4.6.tar.gz
-          cd libtool-2.4.6 && ./configure --prefix=/usr/local && make -j$(nproc) && sudo make install
-          # automake 1.16.5
-          cd /tmp
-          wget https://ftp.gnu.org/gnu/automake/automake-1.16.5.tar.gz
-          tar -xzf automake-1.16.5.tar.gz
-          cd automake-1.16.5 && ./configure --prefix=/usr/local && make -j$(nproc) && sudo make install
-          # autoconf 2.71
-          cd /tmp
-          wget https://ftp.gnu.org/gnu/autoconf/autoconf-2.71.tar.gz
-          tar -xzf autoconf-2.71.tar.gz
-          cd autoconf-2.71 && ./configure --prefix=/usr/local && make -j$(nproc) && sudo make install
-          echo "/usr/local/bin" >> $GITHUB_PATH
+            zlib1g-dev libncurses5-dev libncursesw5-dev libffi-dev libssl-dev \
+            autoconf automake libtool pkg-config cmake curl build-essential
 
       - name: Install Cython and Buildozer
         run: |
