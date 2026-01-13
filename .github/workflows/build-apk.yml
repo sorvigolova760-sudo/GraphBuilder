@@ -23,7 +23,7 @@ jobs:
 
       - name: Install Cython and Buildozer
         run: |
-          pip3 install --user cython buildozer
+          pip3 install --user 'cython<3.0.0' buildozer
 
       - name: Set up Android SDK manually (to fix aidl error)
         run: |
