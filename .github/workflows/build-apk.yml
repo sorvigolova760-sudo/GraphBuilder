@@ -1,4 +1,4 @@
-name: Build APK with Docker
+name: Build APK with Kivy Docker
 
 on: [workflow_dispatch]
 
@@ -9,48 +9,20 @@ jobs:
     steps:
     - uses: actions/checkout@v4
     
-    - name: 🐳 Build APK
+    - name: Build APK
       run: |
-        docker run \
-          --rm \name: Build APK
-
-on: [workflow_dispatch]
-
-jobs:
-  build:
-    runs-on: ubuntu-latest
-    
-    steps:
-    - uses: actions/checkout@v4
-    
-    - name: 🐳 Build APK with Docker
-      run: |
-        # Вариант 1: Автоматически отвечаем 'y'
-        echo "y" | docker run \
-          --rm \
-          -v "${{ github.workspace }}":/app \
-          -w /app \
-          kivy/buildozer \
-          buildozer android debug
-          
-        # ИЛИ Вариант 2: Через bash с автоматическим подтверждением
+        # Используем 'yes' для автоматического ответа на все вопросы
         docker run \
           --rm \
-          -v "${{ github.workspace }}":/app \
+          -v "$PWD":/app \
           -w /app \
+          --user $(id -u):$(id -g) \
           kivy/buildozer \
-          bash -c "yes | buildozer android debug"
+          sh -c "yes | buildozer android debug 2>&1 | tail -100"
           
-    - uses: actions/upload-artifact@v4
+    - name: Upload APK
+      uses: actions/upload-artifact@v4
       with:
-        name: app-apk
+        name: graphbuilder-apk
         path: bin/*.apk
-          -v "${{ github.workspace }}":/app \
-          -w /app \
-          kivy/buildozer \
-          buildozer android debug
-          
-    - uses: actions/upload-artifact@v4
-      with:
-        name: app-apk
-        path: bin/*.apk
+        if-no-files-found: error
