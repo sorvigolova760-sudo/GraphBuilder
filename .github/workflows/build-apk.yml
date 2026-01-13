@@ -37,15 +37,15 @@ jobs:
           mkdir -p cmdline-tools
           mv latest_temp cmdline-tools/latest
           mkdir -p "$ANDROID_HOME/tools/bin"
-          cat > "$ANDROID_HOME/tools/bin/sdkmanager" << 'EOF'
-#!/bin/bash
-export ANDROID_HOME="$HOME/.buildozer/android/platform/android-sdk"
-exec "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "$@"
-EOF
+          printf '%s\n' \
+            '#!/bin/bash' \
+            'export ANDROID_HOME="$HOME/.buildozer/android/platform/android-sdk"' \
+            'exec "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "$@"' \
+            > "$ANDROID_HOME/tools/bin/sdkmanager"
           chmod +x "$ANDROID_HOME/tools/bin/sdkmanager"
           export PATH="$ANDROID_HOME/cmdline-tools/latest/bin:$ANDROID_HOME/tools/bin:$PATH"
-          yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses >/dev/null 2>&1
-          "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "platforms;android-33" "build-tools;33.0.0" "platform-tools"
+          yes | sdkmanager --licenses >/dev/null 2>&1
+          sdkmanager "platforms;android-33" "build-tools;33.0.0" "platform-tools"
 
       - name: Build APK
         run: |
