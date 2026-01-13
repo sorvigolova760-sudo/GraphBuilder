@@ -1,100 +1,23 @@
-name: Build Android APK with Buildozer
+name: 🔨 Build APK
 
-on:
-  push:
-    branches: [ main, master ]
-  pull_request:
-    branches: [ main, master ]
-  workflow_dispatch:  # Позволяет запускать вручную из GitHub UI
+on: [workflow_dispatch]
 
 jobs:
   build:
     runs-on: ubuntu-latest
-    
     steps:
-    - name: Checkout repository
-      uses: actions/checkout@v4
+    - uses: actions/checkout@v4
+    
+    - name: Install deps
+      run: |
+        sudo apt update
+        sudo apt install -y python3-pip python3-venv zip
+        pip3 install buildozer
+        
+    - name: Build APK
+      run: buildozer android debug
       
-    - name: Setup Python
-      uses: actions/setup-python@v4
+    - uses: actions/upload-artifact@v4
       with:
-        python-version: '3.11.14'
-        
-    - name: Install system dependencies
-      run: |
-        sudo apt-get update
-        sudo apt-get install -y \
-          build-essential \
-          git \
-          zip \
-          unzip \
-          openjdk-17-jdk \
-          python3-pip \
-          python3-setuptools \
-          python3-venv \
-          libffi-dev \
-          libssl-dev \
-          libjpeg-dev \
-          libz-dev \
-          libsqlite3-dev
-          
-    - name: Install Buildozer and dependencies
-      run: |
-        python -m pip install --upgrade pip
-        pip install buildozer 'cython<3.0.0'
-        pip install kivy kivymd matplotlib numpy sympy pillow  # Ваши зависимости
-        
-    - name: Initialize Buildozer
-      run: |
-        buildozer init
-        # Если уже есть buildozer.spec - пропустится
-        
-        
-    - name: Download Android SDK/NDK
-      run: |
-        mkdir -p /opt/android-sdk
-        mkdir -p /opt/android-ndk
-        
-        # Скачиваем командную строку SDK
-        wget -q https://dl.google.com/android/repository/commandlinetools-linux-9477386_latest.zip -O cmdline-tools.zip
-        unzip -q cmdline-tools.zip -d /opt/android-sdk/
-        mv /opt/android-sdk/cmdline-tools /opt/android-sdk/cmdline-tools-latest
-        
-        # Устанавливаем переменные окружения
-        echo "ANDROID_SDK_ROOT=/opt/android-sdk" >> $GITHUB_ENV
-        echo "ANDROID_HOME=/opt/android-sdk" >> $GITHUB_ENV
-        echo "PATH=$PATH:/opt/android-sdk/cmdline-tools-latest/bin" >> $GITHUB_ENV
-        
-    - name: Accept Android Licenses
-      run: |
-        # Автоматически принимаем лицензии
-        yes | /opt/android-sdk/cmdline-tools-latest/bin/sdkmanager --licenses || true
-        
-    - name: Build APK with Buildozer
-      run: |
-        # Собираем APK
-        buildozer -v android debug
-        
-        # Проверяем, что APK создан
-        if ls bin/*.apk 1> /dev/null 2>&1; then
-          echo "APK успешно создан!"
-          ls -la bin/
-        else
-          echo "Ошибка: APK не найден!"
-          exit 1
-        fi
-        
-    - name: Upload APK artifact
-      uses: actions/upload-artifact@v4
-      with:
-        name: graphbuilder-apk
+        name: app
         path: bin/*.apk
-        retention-days: 30
-        
-    - name: Create GitHub Release (только для тегов)
-      if: startsWith(github.ref, 'refs/tags/')
-      uses: softprops/action-gh-release@v1
-      with:
-        files: bin/*.apk
-        draft: false
-        prerelease: 
