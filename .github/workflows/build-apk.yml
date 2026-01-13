@@ -23,9 +23,9 @@ jobs:
 
       - name: Install Cython and Buildozer
         run: |
-          pip3 install --user 'cython<3.0.0' buildozer
+          pip3 install --user cython buildozer
 
-      - name: Set up Android SDK with cmdline-tools
+      - name: Set up Android SDK (legacy-compatible)
         run: |
           export ANDROID_HOME="$HOME/.buildozer/android/platform/android-sdk"
           mkdir -p "$ANDROID_HOME"
@@ -34,16 +34,22 @@ jobs:
           unzip -q commandlinetools-linux-*.zip
           rm commandlinetools-linux-*.zip
           mv cmdline-tools latest_temp
-          mkdir cmdline-tools
+          mkdir -p cmdline-tools
           mv latest_temp cmdline-tools/latest
-          export PATH="$ANDROID_HOME/cmdline-tools/latest/bin:$PATH"
-          yes | sdkmanager --licenses >/dev/null 2>&1
-          sdkmanager "platforms;android-33" "build-tools;33.0.0" "platform-tools"
+          mkdir -p "$ANDROID_HOME/tools/bin"
+          cat > "$ANDROID_HOME/tools/bin/sdkmanager" << 'EOF'
+#!/bin/bash
+export ANDROID_HOME="$HOME/.buildozer/android/platform/android-sdk"
+exec "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "$@"
+EOF
+          chmod +x "$ANDROID_HOME/tools/bin/sdkmanager"
+          export PATH="$ANDROID_HOME/cmdline-tools/latest/bin:$ANDROID_HOME/tools/bin:$PATH"
+          yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses >/dev/null 2>&1
+          "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "platforms;android-33" "build-tools;33.0.0" "platform-tools"
 
       - name: Build APK
         run: |
           export ANDROID_HOME="$HOME/.buildozer/android/platform/android-sdk"
-          export PATH="$ANDROID_HOME/cmdline-tools/latest/bin:$PATH"
           ~/.local/bin/buildozer -v android debug
 
       - name: Upload APK
