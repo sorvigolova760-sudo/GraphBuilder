@@ -1,9 +1,9 @@
-name: Build APK with Buildozer
+name: Build GraphBuilder APK
 
 on:
   push:
     branches: [ main, master ]
-  workflow_dispatch:
+  workflow_dispatch:  # Запуск вручную
 
 jobs:
   build:
@@ -23,19 +23,41 @@ jobs:
 
       - name: Install Cython and Buildozer
         run: |
-          pip3 install --user 'cython<3.0.0' buildozer
+          pip3 install --user cython buildozer
 
-      - name: Initialize Buildozer (optional, only if you don't have .buildozer dir)
+      - name: Set up Android SDK manually (to fix aidl error)
         run: |
-          ~/.local/bin/buildozer init || echo "buildozer.spec already exists"
+          export ANDROID_HOME="$HOME/.buildozer/android/platform/android-sdk"
+          mkdir -p "$ANDROID_HOME"
 
-      - name: Build APK
+          # Установка cmdline-tools
+          if [ ! -d "$ANDROID_HOME/cmdline-tools/latest" ]; then
+            mkdir -p "$ANDROID_HOME/cmdline-tools"
+            cd "$ANDROID_HOME/cmdline-tools"
+            wget -q https://dl.google.com/android/repository/commandlinetools-linux-11076708_latest.zip
+            unzip -q commandlinetools-linux-*.zip
+            rm commandlinetools-linux-*.zip
+            mv cmdline-tools latest
+          fi
+
+          export PATH="$ANDROID_HOME/cmdline-tools/latest/bin:$PATH"
+
+          # Принять лицензии автоматически
+          yes | sdkmanager --licenses >/dev/null 2>&1
+
+          # Установить компоненты, соответствующие вашему buildozer.spec:
+          # android.api = 33 → platforms;android-33
+          # android.sdk = 30 → но build-tools лучше брать >=33 для совместимости
+          sdkmanager "platforms;android-33" "build-tools;33.0.0" "platform-tools"
+
+      - name: Build APK (arm64-v8a only)
         run: |
+          export ANDROID_HOME="$HOME/.buildozer/android/platform/android-sdk"
           ~/.local/bin/buildozer -v android debug
 
-      - name: Upload APK as artifact
+      - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
-          name: built-apk
+          name: graphbuilder-apk
           path: bin/*.apk
           retention-days: 7
