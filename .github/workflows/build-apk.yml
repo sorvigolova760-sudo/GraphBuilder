@@ -1,145 +1,23 @@
-name: 📱 Build Android APK
+name: Build APK
 
-on:
-  workflow_dispatch:  # Только ручной запуск из UI GitHub
-  push:
-    tags:
-      - 'v*'          # Автосборка при создании тега v1.0, v2.0 и т.д.
+on: [workflow_dispatch]
 
 jobs:
   build:
     runs-on: ubuntu-latest
-    timeout-minutes: 60  # Билд может быть долгим
     
     steps:
-    # 1. Получить код
-    - name: 📥 Checkout repository
-      uses: actions/checkout@v4
+    - uses: actions/checkout@v4
+    
+    - name: 🐳 Build APK
+      uses: addnab/docker-run-action@v3
       with:
-        fetch-depth: 0
-    
-    # 2. Установить Python
-    - name: 🐍 Setup Python 3.11
-      uses: actions/setup-python@v4
+        image: crazymax/buildozer:latest
+        options: -v ${{ github.workspace }}:/app -w /app
+        run: |
+          buildozer android debug
+          
+    - uses: actions/upload-artifact@v4
       with:
-        python-version: "3.11.14"
-        cache: 'pip'
-    
-    # 3. Установить системные зависимости
-    - name: ⚙️ Install system dependencies
-      run: |
-        sudo apt-get update
-        sudo apt-get install -y \
-          build-essential \
-          git \
-          zip \
-          unzip \
-          openjdk-17-jdk \
-          python3-pip \
-          python3-venv \
-          libffi-dev \
-          libssl-dev \
-          libjpeg-dev \
-          libz-dev \
-          libsqlite3-dev \
-          ccache \
-          autoconf \
-          automake \
-          libtool \
-          pkg-config \
-          cmake \
-          ninja-build
-    
-    # 4. Установить Buildozer и Python-зависимости
-    - name: 📦 Install Buildozer & Python packages
-      run: |
-        pip install --upgrade pip setuptools wheel
-        pip install buildozer
-        pip install 'cython<3.0.0'
-        
-        # Опционально: установить зависимости проекта
-        if [ -f requirements.txt ]; then
-          pip install -r requirements.txt
-        fi
-    
-    # 5. Настроить переменные окружения для Android
-    - name: 🤖 Setup Android environment
-      env:
-        ANDROID_SDK_ROOT: /usr/local/lib/android/sdk
-      run: |
-        # Создать директории для SDK
-        mkdir -p $ANDROID_SDK_ROOT
-        
-        # Установить переменные окружения
-        echo "ANDROID_SDK_ROOT=$ANDROID_SDK_ROOT" >> $GITHUB_ENV
-        echo "ANDROID_HOME=$ANDROID_SDK_ROOT" >> $GITHUB_ENV
-        
-        # Добавить в PATH
-        echo "$ANDROID_SDK_ROOT/cmdline-tools/latest/bin" >> $GITHUB_PATH
-        echo "$ANDROID_SDK_ROOT/platform-tools" >> $GITHUB_PATH
-    
-    # 6. Установить Android SDK (через GitHub Action)
-    - name: 📱 Setup Android SDK
-      uses: android-actions/setup-android@v3
-      with:
-        cmdline-tools-version: 'latest'
-        build-tools-version: '34.0.0'
-        platform-version: '34'
-        ndk-version: '25b'
-        cmake-version: '3.22.1'
-    
-    # 7. Принять лицензии Android (автоматически)
-    - name: 📝 Accept Android licenses
-      run: |
-        yes | $ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager --licenses || true
-    
-    # 8. Очистить предыдущие сборки
-    - name: 🧹 Clean previous builds
-      run: |
-        buildozer android clean 2>/dev/null || true
-        rm -rf .buildozer/android/platform/build-* 2>/dev/null || true
-    
-    # 9. Собрать APK (основной шаг)
-    - name: 🔨 Build APK with Buildozer
-      env:
-        # Ускоряем сборку
-        USE_CCACHE: 1
-        CCACHE_DIR: /tmp/ccache
-        BUILD_WITH_COLOR: 1
-      run: |
-        # Создать кэш директорию
-        mkdir -p /tmp/ccache
-        
-        # Собрать APK с подробным логом
-        echo "🚀 Starting build..."
-        buildozer -v android debug
-        
-        # Проверить результат
-        if ls bin/*.apk 1>/dev/null 2>&1; then
-          APK_FILE=$(ls bin/*.apk | head -1)
-          echo "✅ BUILD SUCCESS!"
-          echo "📦 APK: $APK_FILE"
-          echo "📊 Size: $(du -h "$APK_FILE" | cut -f1)"
-        else
-          echo "❌ BUILD FAILED - No APK found"
-          exit 1
-        fi
-    
-    # 10. Загрузить APK как артефакт
-    - name: ⬆️ Upload APK artifact
-      uses: actions/upload-artifact@v4
-      with:
-        name: graphbuilder-apk
+        name: app
         path: bin/*.apk
-        retention-days: 7
-        if-no-files-found: error
-    
-    # 11. (Опционально) Создать Release при теге
-    - name: 🏷️ Create GitHub Release
-      if: startsWith(github.ref, 'refs/tags/v')
-      uses: softprops/action-gh-release@v1
-      with:
-        files: bin/*.apk
-        generate_release_notes: true
-        draft: false
-        prerelease: false
