@@ -1,93 +1,25 @@
-name: Build GraphBuilder APK
-
-on:
-  workflow_dispatch:
-  push:
-    branches: [ main, master ]
+name: Build
+on: [push, pull_request]
 
 jobs:
-  build:
+  # Build job. Builds app for Android with Buildozer
+  build-android:
+    name: Build for Android
     runs-on: ubuntu-latest
-    timeout-minutes: 90
 
     steps:
-      - name: Checkout code
+      - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Set up Python 3.11
-        uses: actions/setup-python@v5
+      - name: Build with Buildozer
+        uses: ArtemSBulgakov/buildozer-action@v1
+        id: buildozer
         with:
-          python-version: '3.11.14'
+          workdir: test_app
+          buildozer_version: stable
 
-      - name: Enable 2GB swap
-        run: |
-          sudo fallocate -l 2G /swapfile
-          sudo chmod 600 /swapfile
-          sudo mkswap /swapfile
-          sudo swapon /swapfile
-
-      - name: Install system dependencies
-        run: |
-          sudo apt update
-          sudo apt install -y git zip unzip openjdk-17-jdk python3-venv \
-            zlib1g-dev libncurses5-dev libncursesw5-dev libffi-dev libssl-dev \
-            autoconf automake pkg-config cmake curl build-essential
-
-      - name: Install libtool 2.4.6
-        run: |
-          sudo apt remove -y libtool
-          cd /tmp
-          wget https://ftp.gnu.org/gnu/libtool/libtool-2.4.6.tar.gz
-          tar -xzf libtool-2.4.6.tar.gz
-          cd libtool-2.4.6
-          ./configure --prefix=/usr/local
-          make -j$(nproc)
-          sudo make install
-
-      - name: Patch aclocal to force include libtool m4
-        run: |
-          sudo mv /usr/bin/aclocal /usr/bin/aclocal.orig
-          printf '%s\n' \
-            '#!/bin/bash' \
-            'exec /usr/bin/aclocal.orig -I /usr/local/share/aclocal "$@"' \
-            > /tmp/aclocal
-          sudo mv /tmp/aclocal /usr/bin/aclocal
-          sudo chmod +x /usr/bin/aclocal
-
-      - name: Install Cython and Buildozer
-        run: |
-          pip install --user 'cython<3.0.0' buildozer
-
-      - name: Set up Android SDK
-        run: |
-          export ANDROID_HOME="$HOME/.buildozer/android/platform/android-sdk"
-          mkdir -p "$ANDROID_HOME"
-          cd "$ANDROID_HOME"
-          wget -q https://dl.google.com/android/repository/commandlinetools-linux-11076708_latest.zip
-          unzip -q commandlinetools-linux-*.zip
-          rm commandlinetools-linux-*.zip
-          mv cmdline-tools latest_temp
-          mkdir -p cmdline-tools
-          mv latest_temp cmdline-tools/latest
-          mkdir -p "$ANDROID_HOME/tools/bin"
-          printf '%s\n' \
-            '#!/bin/bash' \
-            'export ANDROID_HOME="$HOME/.buildozer/android/platform/android-sdk"' \
-            'exec "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "$@"' \
-            > "$ANDROID_HOME/tools/bin/sdkmanager"
-          chmod +x "$ANDROID_HOME/tools/bin/sdkmanager"
-          export PATH="$ANDROID_HOME/cmdline-tools/latest/bin:$ANDROID_HOME/tools/bin:$PATH"
-          yes | sdkmanager --licenses >/dev/null 2>&1
-          sdkmanager "platforms;android-33" "build-tools;33.0.0" "platform-tools"
-
-      - name: Build APK
-        run: |
-          export ANDROID_HOME="$HOME/.buildozer/android/platform/android-sdk"
-          ~/.local/bin/buildozer -v android debug
-
-      - name: Upload APK
+      - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: graphbuilder-debug-apk
-          path: bin/*.apk
-          retention-days: 7
+          name: package
+          path: ${{ steps.buildozer.outputs.filename }}
