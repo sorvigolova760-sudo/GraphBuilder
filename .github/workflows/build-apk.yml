@@ -1,28 +1,53 @@
-name: Build APK with Kivy Docker
+name: Build APK
 
-on: [workflow_dispatch]
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+  workflow_dispatch:  # Позволяет запускать вручную из GitHub UI
 
 jobs:
   build:
     runs-on: ubuntu-latest
     
     steps:
-    - uses: actions/checkout@v4
-    
-    - name: Build APK
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.9'  # Или ваша версия Python
+        
+    - name: Install dependencies
       run: |
-        # Используем 'yes' для автоматического ответа на все вопросы
-        docker run \
-          --rm \
-          -v "$PWD":/app \
-          -w /app \
-          --user $(id -u):$(id -g) \
-          kivy/buildozer \
-          sh -c "yes | buildozer android debug 2>&1 | tail -100"
+        sudo apt-get update
+        sudo apt-get install -y \
+          git \
+          zip \
+          unzip \
+          openjdk-17-jdk \
+          python3-pip \
+          python3-venv \
+          zlib1g-dev \
+          libncurses5-dev \
+          libncursesw5-dev \
+          libffi-dev \
+          libssl-dev
           
-    - name: Upload APK
+    - name: Build APK with Buildozer
+      uses: ArtemSBulgakov/buildozer-action@v1
+      with:
+        # Опциональные параметры:
+        command: buildozer -v android debug  # Или buildozer -v android release для релиза
+        # build_mode: debug  # debug или release
+        # target: android    # android или ios
+        # spec: buildozer.spec  # Путь к spec файлу, если не в корне
+        
+    - name: Upload APK artifact
       uses: actions/upload-artifact@v4
       with:
-        name: graphbuilder-apk
+        name: apk-${{ github.sha }}
         path: bin/*.apk
-        if-no-files-found: error
+        retention-days: 30
