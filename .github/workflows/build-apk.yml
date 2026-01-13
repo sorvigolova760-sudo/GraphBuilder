@@ -49,29 +49,6 @@ jobs:
         buildozer init
         # Если уже есть buildozer.spec - пропустится
         
-    - name: Configure Buildozer for CI
-      run: |
-        # Настраиваем buildozer.spec для CI
-        if [ -f buildozer.spec ]; then
-          # Делаем бэкап оригинального файла
-          cp buildozer.spec buildozer.spec.backup
-          
-          # Обновляем конфигурацию для CI
-          sed -i 's/# android.accept_sdk_license = False/android.accept_sdk_license = True/g' buildozer.spec
-          sed -i 's/# android.sdk = \/path\/to\/android\/sdk/# android.sdk = \/opt\/android-sdk/g' buildozer.spec
-          sed -i 's/# android.ndk = \/path\/to\/android\/ndk/# android.ndk = \/opt\/android-ndk/g' buildozer.spec
-          sed -i 's/# android.ndk_api = 21/android.ndk_api = 21/g' buildozer.spec
-          
-          # Устанавливаем автоматическое принятие лицензий
-          echo "" >> buildozer.spec
-          echo "# CI Settings" >> buildozer.spec
-          echo "android.accept_sdk_license = True" >> buildozer.spec
-          echo "android.sdk_path = /opt/android-sdk" >> buildozer.spec
-          echo "android.ndk_path = /opt/android-ndk" >> buildozer.spec
-        else
-          echo "buildozer.spec not found, using default"
-          buildozer init
-        fi
         
     - name: Download Android SDK/NDK
       run: |
