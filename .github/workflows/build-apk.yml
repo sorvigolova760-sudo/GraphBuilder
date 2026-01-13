@@ -17,7 +17,7 @@ jobs:
       - name: Set up Python 3.11
         uses: actions/setup-python@v5
         with:
-          python-version: '3.11'
+          python-version: '3.11.14'
 
       - name: Enable 2GB swap
         run: |
@@ -47,16 +47,16 @@ jobs:
       - name: Patch aclocal to force include libtool m4
         run: |
           sudo mv /usr/bin/aclocal /usr/bin/aclocal.orig
-          cat > /tmp/aclocal << 'EOF'
-#!/bin/bash
-exec /usr/bin/aclocal.orig -I /usr/local/share/aclocal "$@"
-EOF
+          printf '%s\n' \
+            '#!/bin/bash' \
+            'exec /usr/bin/aclocal.orig -I /usr/local/share/aclocal "$@"' \
+            > /tmp/aclocal
           sudo mv /tmp/aclocal /usr/bin/aclocal
           sudo chmod +x /usr/bin/aclocal
 
       - name: Install Cython and Buildozer
         run: |
-          pip install --user cython buildozer
+          pip install --user 'cython<3.0.0' buildozer
 
       - name: Set up Android SDK
         run: |
