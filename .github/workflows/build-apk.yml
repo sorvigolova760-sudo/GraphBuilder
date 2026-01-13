@@ -12,7 +12,39 @@ jobs:
     - name: 🐳 Build APK
       run: |
         docker run \
+          --rm \name: Build APK
+
+on: [workflow_dispatch]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: 🐳 Build APK with Docker
+      run: |
+        # Вариант 1: Автоматически отвечаем 'y'
+        echo "y" | docker run \
           --rm \
+          -v "${{ github.workspace }}":/app \
+          -w /app \
+          kivy/buildozer \
+          buildozer android debug
+          
+        # ИЛИ Вариант 2: Через bash с автоматическим подтверждением
+        docker run \
+          --rm \
+          -v "${{ github.workspace }}":/app \
+          -w /app \
+          kivy/buildozer \
+          bash -c "yes | buildozer android debug"
+          
+    - uses: actions/upload-artifact@v4
+      with:
+        name: app-apk
+        path: bin/*.apk
           -v "${{ github.workspace }}":/app \
           -w /app \
           kivy/buildozer \
