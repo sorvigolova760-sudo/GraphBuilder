@@ -1,11 +1,21 @@
 # function_analyzer.py
+
+# =========== ПАТЧ ДЛЯ ANDROID ===========
+import sys
+import collections
+import collections.abc
+
+# Применяем патч ДО импорта sympy
+collections.Mapping = collections.abc.Mapping
+collections.Sequence = collections.abc.Sequence
+collections.Iterable = collections.abc.Iterable
+
+if 'collections' in sys.modules:
+    sys.modules['collections'].Mapping = collections.abc.Mapping
+    sys.modules['collections'].Sequence = collections.abc.Sequence
+# ========================================
 import math
 import numpy as np
-
-try:
-    from collections.abc import Mapping
-except ImportError:
-    from collections import Mapping
 
 from sympy import symbols, sympify, diff, solve, S, oo, Interval, Union, limit, simplify
 from sympy.calculus.util import continuous_domain, function_range
