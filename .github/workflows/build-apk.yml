@@ -33,7 +33,7 @@ jobs:
             zlib1g-dev libncurses5-dev libncursesw5-dev libffi-dev libssl-dev \
             autoconf automake pkg-config cmake curl build-essential
 
-      - name: Install compatible libtool 2.4.6 (fix LT_SYS_SYMBOL_USCORE)
+      - name: Install libtool 2.4.6 (compatible with libffi)
         run: |
           sudo apt remove -y libtool
           cd /tmp
@@ -43,7 +43,6 @@ jobs:
           ./configure --prefix=/usr/local
           make -j$(nproc)
           sudo make install
-          echo 'export PATH="/usr/local/bin:$PATH"' >> $GITHUB_ENV
 
       - name: Install Cython and Buildozer
         run: |
@@ -74,6 +73,8 @@ jobs:
       - name: Build APK
         run: |
           export ANDROID_HOME="$HOME/.buildozer/android/platform/android-sdk"
+          export PATH="/usr/local/bin:$PATH"
+          export ACLOCAL_PATH="/usr/local/share/aclocal"
           ~/.local/bin/buildozer -v android debug
 
       - name: Upload APK
