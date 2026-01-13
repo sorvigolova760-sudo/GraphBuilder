@@ -1,9 +1,9 @@
 name: Build GraphBuilder APK
 
 on:
+  workflow_dispatch:
   push:
     branches: [ main, master ]
-  workflow_dispatch:  # Запуск вручную
 
 jobs:
   build:
@@ -25,39 +25,30 @@ jobs:
         run: |
           pip3 install --user 'cython<3.0.0' buildozer
 
-      - name: Set up Android SDK manually (to fix aidl error)
+      - name: Set up Android SDK with cmdline-tools
         run: |
           export ANDROID_HOME="$HOME/.buildozer/android/platform/android-sdk"
           mkdir -p "$ANDROID_HOME"
-
-          # Установка cmdline-tools
-          if [ ! -d "$ANDROID_HOME/cmdline-tools/latest" ]; then
-            mkdir -p "$ANDROID_HOME/cmdline-tools"
-            cd "$ANDROID_HOME/cmdline-tools"
-            wget -q https://dl.google.com/android/repository/commandlinetools-linux-11076708_latest.zip
-            unzip -q commandlinetools-linux-*.zip
-            rm commandlinetools-linux-*.zip
-            mv cmdline-tools latest
-          fi
-
+          cd "$ANDROID_HOME"
+          wget -q https://dl.google.com/android/repository/commandlinetools-linux-11076708_latest.zip
+          unzip -q commandlinetools-linux-*.zip
+          rm commandlinetools-linux-*.zip
+          mv cmdline-tools latest_temp
+          mkdir cmdline-tools
+          mv latest_temp cmdline-tools/latest
           export PATH="$ANDROID_HOME/cmdline-tools/latest/bin:$PATH"
-
-          # Принять лицензии автоматически
           yes | sdkmanager --licenses >/dev/null 2>&1
-
-          # Установить компоненты, соответствующие вашему buildozer.spec:
-          # android.api = 33 → platforms;android-33
-          # android.sdk = 30 → но build-tools лучше брать >=33 для совместимости
           sdkmanager "platforms;android-33" "build-tools;33.0.0" "platform-tools"
 
-      - name: Build APK (arm64-v8a only)
+      - name: Build APK
         run: |
           export ANDROID_HOME="$HOME/.buildozer/android/platform/android-sdk"
+          export PATH="$ANDROID_HOME/cmdline-tools/latest/bin:$PATH"
           ~/.local/bin/buildozer -v android debug
 
-      - name: Upload APK artifact
+      - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: graphbuilder-apk
+          name: graphbuilder-debug-apk
           path: bin/*.apk
           retention-days: 7
