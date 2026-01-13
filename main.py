@@ -1,4 +1,17 @@
 # main.py
+# ========== ANDROID PATCH ==========
+import sys
+
+# Патч для Python 3.11+ на Android
+if 'collections' in sys.modules:
+    import collections.abc
+    import collections
+    collections.Mapping = collections.abc.Mapping
+    collections.Sequence = collections.abc.Sequence
+    sys.modules['collections'] = collections
+    print("✅ Android collections patch applied")
+# ===================================
+
 import os
 os.environ['KIVY_GL_BACKEND'] = 'gl'
 os.environ['KIVY_WINDOW'] = 'sdl2'
