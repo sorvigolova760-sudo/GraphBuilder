@@ -1,27 +1,41 @@
-name: Build APK
+name: Build APK with Buildozer
 
 on:
   push:
-    branches: [ main, master ]
-  pull_request:
     branches: [ main, master ]
   workflow_dispatch:
 
 jobs:
   build:
     runs-on: ubuntu-latest
-    
+    timeout-minutes: 60
+
     steps:
-    - name: Checkout repository
-      uses: actions/checkout@v4
-      
-    - name: Build Kivy App to APK
-      uses: digreatbrian/buildozer-action@main  # или ArtemSBulgakov/buildozer-action@v1
-      with:
-        command: buildozer android debug
-        
-    - name: Upload APK
-      uses: actions/upload-artifact@v4
-      with:
-        name: my-app-apk
-        path: bin/*.apk
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install system dependencies
+        run: |
+          sudo apt update
+          sudo apt install -y git zip unzip openjdk-17-jdk python3 python3-pip python3-venv \
+            zlib1g-dev libncurses5-dev libncursesw5-dev libffi-dev libssl-dev autoconf \
+            libtool pkg-config cmake
+
+      - name: Install Cython and Buildozer
+        run: |
+          pip3 install --user 'cython<3.0.0' buildozer
+
+      - name: Initialize Buildozer (optional, only if you don't have .buildozer dir)
+        run: |
+          ~/.local/bin/buildozer init || echo "buildozer.spec already exists"
+
+      - name: Build APK
+        run: |
+          ~/.local/bin/buildozer -v android debug
+
+      - name: Upload APK as artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: built-apk
+          path: bin/*.apk
+          retention-days: 7
