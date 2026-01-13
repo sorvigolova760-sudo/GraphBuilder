@@ -1,6 +1,12 @@
 # function_analyzer.py
 import math
 import numpy as np
+
+try:
+    from collections.abc import Mapping
+except ImportError:
+    from collections import Mapping
+
 from sympy import symbols, sympify, diff, solve, S, oo, Interval, Union, limit, simplify
 from sympy.calculus.util import continuous_domain, function_range
 from sympy.calculus.util import periodicity
