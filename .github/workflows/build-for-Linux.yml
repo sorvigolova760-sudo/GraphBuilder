@@ -1,4 +1,4 @@
-name: Build Executable
+name: Build with Nuitka
 
 on: [push]
 
@@ -9,17 +9,17 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       
-      - name: Build executable
-        uses: nschloe/executable-build@v2
+      - name: Build with Nuitka
+        uses: Nuitka/Nuitka-Action@main
         with:
-          python-version: '3.11'
-          requirements: 'requirements.txt'
-          script: 'main.py'
-          name: 'graphbuilder'
+          nuitka-version: main
+          script-name: main.py
           onefile: true
+          enable-plugin: tk-inter
+          output-filename: graphbuilder
       
-      - name: Upload
+      - name: Upload binary
         uses: actions/upload-artifact@v4
         with:
-          name: executable
-          path: dist/
+          name: nuitka-build
+          path: graphbuilder*
