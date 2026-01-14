@@ -21,22 +21,22 @@ jobs:
         with:
           python-version: '3.11'
 
-      # 3. Устанавливаем системные зависимости
-    - name: Install system dependencies
-      run: |
-        sudo apt-get update
-    # Устанавливаем системные зависимости для сборки и FPM
-        sudo apt-get install -y \
-        python3-pip python3-dev            build-essential \
-        libsdl2-dev libmtdev-dev libgstreamer1.0-dev \
-        libgstreamer-plugins-base1.0-dev libgl1-mesa-dev \
-        libgles2-mesa-dev libjpeg-dev libpng-dev \
-        libavformat-dev libswscale-dev libxrandr-dev \
-        libxi-dev libxcursor-dev libxinerama-dev \
-        libxcomposite-dev libffi-dev libssl-dev \
-        pkg-config ruby ruby-dev rubygems
-    # Устанавливаем FPM через RubyGems
-        sudo gem install fpm
+      # 3. Устанавливаем системные зависимости (ИСПРАВЛЕНО)
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          # Устанавливаем системные зависимости для сборки и FPM
+          sudo apt-get install -y \
+            python3-pip python3-dev build-essential \
+            libsdl2-dev libmtdev-dev libgstreamer1.0-dev \
+            libgstreamer-plugins-base1.0-dev libgl1-mesa-dev \
+            libgles2-mesa-dev libjpeg-dev libpng-dev \
+            libavformat-dev libswscale-dev libxrandr-dev \
+            libxi-dev libxcursor-dev libxinerama-dev \
+            libxcomposite-dev libffi-dev libssl-dev \
+            pkg-config ruby ruby-dev rubygems
+          # Устанавливаем FPM через RubyGems
+          sudo gem install fpm
 
       # 4. Устанавливаем зависимости Python
       - name: Install Python dependencies
@@ -61,42 +61,36 @@ jobs:
             --hidden-import=sympy \
             main.py
 
-      # 6. Создаём структуру пакета .deb
-      - name: Create .deb package structure
+      # 6. Создаём структуру пакета .deb с помощью FPM
+      - name: Create .deb package with FPM
         run: |
-          # Создаём базовую структуру пакета
-          mkdir -p package-build/usr/bin
-          mkdir -p package-build/usr/share/myapp
-          mkdir -p package-build/usr/share/applications
-          mkdir -p package-build/DEBIAN
+          # Создаём временную структуру для FPM
+          mkdir -p fpm-package/usr/bin
+          mkdir -p fpm-package/usr/share/myapp
           
           # Копируем собранный бинарник
-          cp dist/myapp package-build/usr/bin/
-          chmod 755 package-build/usr/bin/myapp
-
-      # 7. Создаём файл управления пакетом (DEBIAN/control)
-      - name: Create DEBIAN/control file
-        run: |
-          cat > package-build/DEBIAN/control << EOF
-          Package: myapp
-          Version: 1.0.0-${{ github.run_number }}
-          Section: utils
-          Priority: optional
-          Architecture: amd64
-          Depends: python3, libsdl2-2.0-0, libmtdev1, gstreamer1.0-plugins-base, libgl1, libgles2
-          Maintainer: Your Name <your.email@example.com>
-          Description: Graph Builder Application (Kivy)
-           A visual graph builder built with Kivy and KivyMD.
-          EOF
-
-      # 8. Собираем .deb пакет с помощью dpkg-deb
-      - name: Build .deb package
-        run: |
-          dpkg-deb --build package-build myapp_1.0.0-${{ github.run_number }}_amd64.deb
+          cp dist/myapp fpm-package/usr/bin/
+          chmod 755 fpm-package/usr/bin/myapp
+          
+          # Создаём .deb пакет с помощью FPM
+          fpm -s dir -t deb \
+            -n myapp \
+            -v 1.0.0-${{ github.run_number }} \
+            -C fpm-package \
+            --description "Graph Builder Application (Kivy)" \
+            --maintainer "Your Name <your.email@example.com>" \
+            --depends "python3" \
+            --depends "libsdl2-2.0-0" \
+            --depends "libmtdev1" \
+            --depends "gstreamer1.0-plugins-base" \
+            --depends "libgl1" \
+            --deb-no-default-config-files \
+            usr
+          
           echo "Package created:"
           ls -lh *.deb
 
-      # 9. Загружаем артефакты (исполняемый файл и .deb пакет)
+      # 7. Загружаем артефакты (исполняемый файл и .deb пакет)
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
