@@ -9,37 +9,39 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Build and run
+      - name: Prepare directories
         run: |
-          # Создаем папки
           mkdir -p .buildozer bin
           chmod 777 .buildozer bin
-          
-          # Собираем образ
-          docker build -t myapp-builder - << 'EOF'
-          FROM ubuntu:22.04
-          ENV DEBIAN_FRONTEND=noninteractive
-          RUN apt-get update && apt-get install -y \
-              python3 python3-pip git zip unzip \
-              openjdk-17-jdk autoconf libtool
-          RUN pip3 install buildozer cython
-          RUN useradd -m -u 1001 builder
-          USER builder
-          WORKDIR /app
-          EOF
-          
-          # Запускаем сборку
+
+      - name: Build Docker image
+        run: |
+          docker build -t myapp-builder .
+
+      - name: Run Buildozer with Android SDK
+        run: |
           docker run --rm \
             -v "$(pwd):/app" \
             -w /app \
-            -e "CI=true" \
+            -e ANDROID_HOME=/opt/android-sdk \
+            -e ANDROID_SDK_ROOT=/opt/android-sdk \
+            -e BUILDOZER_NONINTERACTIVE=1 \
             myapp-builder \
             bash -c "
-              # Отключаем интерактивные вопросы
-              export BUILDOZER_NONINTERACTIVE=1
+              echo '=== Setting up environment ==='
+              echo 'ANDROID_HOME: \$ANDROID_HOME'
+              echo 'PATH: \$PATH'
+              ls -la /opt/android-sdk/
               
-              echo '=== Building APK ==='
-              buildozer android clean || true
+              echo -e '\n=== Checking Android SDK ==='
+              /opt/android-sdk/tools/bin/sdkmanager --list 2>/dev/null | head -20
+              
+              echo -e '\n=== Building APK ==='
+              if [ ! -f 'buildozer.spec' ]; then
+                buildozer init
+              fi
+              
+              buildozer android clean 2>/dev/null || true
               buildozer android debug
             "
 
