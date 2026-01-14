@@ -1,4 +1,4 @@
-name: Create DEB Package
+name: Easy Build
 
 on: [push]
 
@@ -9,27 +9,31 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       
-      - name: Build executable
-        run: |
-          pip install pyinstaller
-          pyinstaller --onefile main.py
+      # 1. Собираем бинарник
+      - name: Build with PyInstaller Action
+        uses: JackMcKew/pyinstaller-action@main
+        with:
+          entry_point: 'main.py'
+          name: 'graphbuilder'
+          spec: 'onefile'
+          hidden_imports: 'kivy'
       
-      - name: Create DEB with fpm-action
+      # 2. Создаем .deb пакет (опционально)
+      - name: Create DEB package
         uses: julb/fpm-action@v1
         with:
           input_type: dir
           output_type: deb
           package: graphbuilder
           version: 1.0.${{ github.run_number }}
-          architecture: amd64
-          prefix: /usr/bin
           input_path: dist/graphbuilder
-          output_path: .
-          maintainer: ${{ github.actor }}
-          description: 'Graph Builder Application'
+          prefix: /usr/bin
       
-      - name: Upload DEB
+      # 3. Загружаем артефакты
+      - name: Upload everything
         uses: actions/upload-artifact@v4
         with:
-          name: deb-package
-          path: '*.deb'
+          name: build-artifacts
+          path: |
+            dist/
+            *.deb
