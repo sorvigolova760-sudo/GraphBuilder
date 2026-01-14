@@ -13,23 +13,29 @@ jobs:
         run: |
           docker build -t myapp-builder .
 
-      - name: Run Buildozer in container
+      - name: Create directories with correct permissions
+        run: |
+          mkdir -p .buildozer bin
+          chmod 777 .buildozer bin
+
+      - name: Run Buildozer
         run: |
           docker run --rm \
-            -v "$(pwd)/bin:/app/bin" \
-            -v "$(pwd)/.buildozer:/app/.buildozer" \
+            --user root \
+            -v "$(pwd):/app" \
+            -w /app \
             myapp-builder \
             bash -c "
-              echo '=== Starting build ==='
-              ls -la
+              # Даем права на все
+              chmod -R 777 /app
               
-              # Инициализация если нет spec файла
+              echo '=== Starting build ==='
+              
               if [ ! -f 'buildozer.spec' ]; then
                 echo 'Creating buildozer.spec...'
                 buildozer init
               fi
               
-              # Сборка APK
               buildozer android clean
               buildozer android debug
               
