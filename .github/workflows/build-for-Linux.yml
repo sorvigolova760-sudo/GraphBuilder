@@ -1,4 +1,4 @@
-name: Build with Nuitka
+name: Create DEB Package
 
 on: [push]
 
@@ -9,17 +9,27 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       
-      - name: Build with Nuitka
-        uses: Nuitka/Nuitka-Action@main
-        with:
-          nuitka-version: main
-          script-name: main.py
-          onefile: true
-          enable-plugin: tk-inter
-          output-filename: graphbuilder
+      - name: Build executable
+        run: |
+          pip install pyinstaller
+          pyinstaller --onefile main.py
       
-      - name: Upload binary
+      - name: Create DEB with fpm-action
+        uses: julb/fpm-action@v1
+        with:
+          input_type: dir
+          output_type: deb
+          package: graphbuilder
+          version: 1.0.${{ github.run_number }}
+          architecture: amd64
+          prefix: /usr/bin
+          input_path: dist/graphbuilder
+          output_path: .
+          maintainer: ${{ github.actor }}
+          description: 'Graph Builder Application'
+      
+      - name: Upload DEB
         uses: actions/upload-artifact@v4
         with:
-          name: nuitka-build
-          path: graphbuilder*
+          name: deb-package
+          path: '*.deb'
