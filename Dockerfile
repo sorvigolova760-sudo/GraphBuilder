@@ -2,14 +2,19 @@ FROM ubuntu:22.04
 
 ENV DEBIAN_FRONTEND=noninteractive
 
-# Устанавливаем зависимости
+# Устанавливаем ВСЕ зависимости включая Java
 RUN apt-get update && apt-get install -y \
     python3 python3-pip python3-venv \
     git wget zip unzip curl \
+    openjdk-17-jdk \  # ← ВАЖНО: устанавливаем Java!
     autoconf libtool pkg-config \
     zlib1g-dev libffi-dev libssl-dev \
     libncurses5-dev libsqlite3-dev \
     && apt-get clean
+
+# Устанавливаем переменные Java
+ENV JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64
+ENV PATH="${PATH}:${JAVA_HOME}/bin"
 
 # Устанавливаем Buildozer
 RUN pip3 install buildozer cython
@@ -22,7 +27,7 @@ RUN cd /opt/android-sdk && \
     rm commandlinetools-linux-9477386_latest.zip && \
     mv cmdline-tools tools
 
-# Устанавливаем переменные окружения
+# Устанавливаем переменные окружения Android
 ENV ANDROID_HOME=/opt/android-sdk
 ENV ANDROID_SDK_ROOT=/opt/android-sdk
 ENV PATH="${PATH}:${ANDROID_HOME}/tools/bin:${ANDROID_HOME}/platform-tools"
