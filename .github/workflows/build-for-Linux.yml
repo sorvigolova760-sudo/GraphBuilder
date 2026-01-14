@@ -1,39 +1,104 @@
-name: Easy Build
+name: Build Kivy App for Linux (.deb)
 
-on: [push]
+on:
+  push:
+    branches: [ main ]
+  release:
+    types: [created]
 
 jobs:
-  build:
+  build-deb:
     runs-on: ubuntu-latest
-    
+
     steps:
-      - uses: actions/checkout@v4
-      
-      # 1. Собираем бинарник
-      - name: Build with PyInstaller Action
-        uses: JackMcKew/pyinstaller-action@main
+      # 1. Получаем код
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      # 2. Настраиваем Python
+      - name: Setup Python
+        uses: actions/setup-python@v4
         with:
-          entry_point: 'main.py'
-          name: 'graphbuilder'
-          spec: 'onefile'
-          hidden_imports: 'kivy'
-      
-      # 2. Создаем .deb пакет (опционально)
-      - name: Create DEB package
-        uses: julb/fpm-action@v1
-        with:
-          input_type: dir
-          output_type: deb
-          package: graphbuilder
-          version: 1.0.${{ github.run_number }}
-          input_path: dist/graphbuilder
-          prefix: /usr/bin
-      
-      # 3. Загружаем артефакты
-      - name: Upload everything
+          python-version: '3.11'
+
+      # 3. Устанавливаем системные зависимости
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          # Ключевые зависимости для сборки приложений и пакетов
+          sudo apt-get install -y \
+            python3-pip python3-dev build-essential \
+            libsdl2-dev libmtdev-dev libgstreamer1.0-dev \
+            libgstreamer-plugins-base1.0-dev libgl1-mesa-dev \
+            libgles2-mesa-dev libjpeg-dev libpng-dev \
+            libavformat-dev libswscale-dev libxrandr-dev \
+            libxi-dev libxcursor-dev libxinerama-dev \
+            libxcomposite-dev libffi-dev libssl-dev \
+            pkg-config fpm ruby ruby-dev
+
+      # 4. Устанавливаем зависимости Python
+      - name: Install Python dependencies
+        run: |
+          pip install --upgrade pip wheel setuptools
+          pip install pyinstaller cython
+          # Основные зависимости для твоего приложения
+          pip install kivy[full] kivymd numpy sympy
+          # Дополнительно устанавливаем всё из requirements.txt (если он есть)
+          if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+
+      # 5. Собираем исполняемый файл с PyInstaller
+      - name: Build executable with PyInstaller
+        run: |
+          pyinstaller --onefile \
+            --name=myapp \
+            --add-data="*.py:." \
+            --add-data="*.kv:." \
+            --hidden-import=kivy \
+            --hidden-import=kivymd \
+            --hidden-import=numpy \
+            --hidden-import=sympy \
+            main.py
+
+      # 6. Создаём структуру пакета .deb
+      - name: Create .deb package structure
+        run: |
+          # Создаём базовую структуру пакета
+          mkdir -p package-build/usr/bin
+          mkdir -p package-build/usr/share/myapp
+          mkdir -p package-build/usr/share/applications
+          mkdir -p package-build/DEBIAN
+          
+          # Копируем собранный бинарник
+          cp dist/myapp package-build/usr/bin/
+          chmod 755 package-build/usr/bin/myapp
+
+      # 7. Создаём файл управления пакетом (DEBIAN/control)
+      - name: Create DEBIAN/control file
+        run: |
+          cat > package-build/DEBIAN/control << EOF
+          Package: myapp
+          Version: 1.0.0-${{ github.run_number }}
+          Section: utils
+          Priority: optional
+          Architecture: amd64
+          Depends: python3, libsdl2-2.0-0, libmtdev1, gstreamer1.0-plugins-base, libgl1, libgles2
+          Maintainer: Your Name <your.email@example.com>
+          Description: Graph Builder Application (Kivy)
+           A visual graph builder built with Kivy and KivyMD.
+          EOF
+
+      # 8. Собираем .deb пакет с помощью dpkg-deb
+      - name: Build .deb package
+        run: |
+          dpkg-deb --build package-build myapp_1.0.0-${{ github.run_number }}_amd64.deb
+          echo "Package created:"
+          ls -lh *.deb
+
+      # 9. Загружаем артефакты (исполняемый файл и .deb пакет)
+      - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: build-artifacts
+          name: linux-package
           path: |
-            dist/
-            *.deb
+            dist/myapp
+            myapp_*.deb
