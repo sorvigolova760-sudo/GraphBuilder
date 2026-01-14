@@ -1,56 +1,38 @@
 FROM ubuntu:22.04
 
-# Устанавливаем таймзону (чтобы не спрашивала при установке)
-ENV TZ=Europe/Moscow
-RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone
+ENV DEBIAN_FRONTEND=noninteractive
 
-# Устанавливаем все зависимости
+# Устанавливаем зависимости
 RUN apt-get update && apt-get install -y \
-    python3 \
-    python3-pip \
-    python3-venv \
-    git \
-    wget \
-    zip \
-    unzip \
-    openjdk-17-jdk \
-    autoconf \
-    automake \
-    cmake \
-    libtool \
-    pkg-config \
-    zlib1g-dev \
-    libncurses5-dev \
-    libncursesw5-dev \
-    libtinfo5 \
-    libffi-dev \
-    libssl-dev \
-    libsqlite3-dev \
-    sudo \
-    curl \
-    ccache \
-    && apt-get clean \
-    && rm -rf /var/lib/apt/lists/*
+    python3 python3-pip python3-venv \
+    git wget zip unzip curl \
+    autoconf libtool pkg-config \
+    zlib1g-dev libffi-dev libssl-dev \
+    libncurses5-dev libsqlite3-dev \
+    && apt-get clean
 
-# Устанавливаем Buildozer и Cython
-RUN pip3 install --upgrade pip setuptools wheel \
-    && pip3 install buildozer cython virtualenv
+# Устанавливаем Buildozer
+RUN pip3 install buildozer cython
 
-# Создаем пользователя без пароля для безопасности
-RUN useradd -m -u 1000 -s /bin/bash builder \
-    && echo "builder ALL=(ALL) NOPASSWD:ALL" >> /etc/sudoers
+# Устанавливаем Android SDK
+RUN mkdir -p /opt/android-sdk
+RUN cd /opt/android-sdk && \
+    wget -q https://dl.google.com/android/repository/commandlinetools-linux-9477386_latest.zip && \
+    unzip commandlinetools-linux-9477386_latest.zip && \
+    rm commandlinetools-linux-9477386_latest.zip && \
+    mv cmdline-tools tools
 
-# Рабочая директория
-WORKDIR /app
+# Устанавливаем переменные окружения
+ENV ANDROID_HOME=/opt/android-sdk
+ENV ANDROID_SDK_ROOT=/opt/android-sdk
+ENV PATH="${PATH}:${ANDROID_HOME}/tools/bin:${ANDROID_HOME}/platform-tools"
 
-# Копируем все файлы проекта
-COPY . /app/
+# Принимаем лицензии и устанавливаем необходимые пакеты
+RUN yes | ${ANDROID_HOME}/tools/bin/sdkmanager --licenses
+RUN ${ANDROID_HOME}/tools/bin/sdkmanager "platform-tools" "platforms;android-33" "build-tools;33.0.0"
 
-# Меняем владельца на builder
-RUN chown -R builder:builder /app
-
-# Переключаемся на пользователя builder
+# Создаем пользователя
+RUN useradd -m -u 1001 -s /bin/bash builder
 USER builder
 
-# Команда по умолчанию
-CMD ["bash"]
+WORKDIR /app
