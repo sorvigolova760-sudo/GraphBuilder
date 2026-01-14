@@ -9,32 +9,33 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Build Docker image
+      - name: Prepare directories
         run: |
-          docker build -t myapp-builder .
+          mkdir -p .buildozer bin
+          sudo chown -R $USER:$USER .buildozer bin
 
-      - name: Run Buildozer (simple)
+      - name: Build with Docker (as root)
         run: |
           docker run --rm \
+            --user root \
             -v "$(pwd):/app" \
             -w /app \
-            myapp-builder \
+            ubuntu:22.04 \
             bash -c "
-              # Меняем пользователя на root чтобы не было проблем с правами
-              echo '=== Starting build ==='
+              # Устанавливаем все сразу
+              apt-get update && apt-get install -y \
+                python3 python3-pip git zip unzip \
+                openjdk-17-jdk autoconf libtool pkg-config
               
-              # Создаем папки если их нет
-              mkdir -p .buildozer bin
+              pip3 install buildozer cython
               
+              echo '=== Building APK ==='
               if [ ! -f 'buildozer.spec' ]; then
                 buildozer init
               fi
               
               buildozer android clean
               buildozer android debug
-              
-              echo '=== Build result ==='
-              ls -la bin/
             "
 
       - name: Upload APK
