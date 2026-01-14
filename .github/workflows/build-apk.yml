@@ -4,12 +4,13 @@ on: [push, pull_request]
 jobs:
   build:
     runs-on: ubuntu-latest
+    timeout-minutes: 45
     
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Prepare directories
+      - name: Setup directories
         run: |
           mkdir -p .buildozer bin
           chmod 777 .buildozer bin
@@ -18,7 +19,7 @@ jobs:
         run: |
           docker build -t myapp-builder .
 
-      - name: Run Buildozer
+      - name: Run Buildozer (downloads Android SDK)
         run: |
           docker run --rm \
             -v "$(pwd):/app" \
@@ -26,23 +27,43 @@ jobs:
             -e BUILDOZER_NONINTERACTIVE=1 \
             myapp-builder \
             bash -c "
-              echo '=== Environment ==='
-              echo 'Java:'
-              java -version 2>&1
-              echo -e '\nPython:'
-              python3 --version
+              echo '=== Starting build ==='
               
-              echo -e '\n=== Building APK ==='
+              # Создаем buildozer.spec если нет
               if [ ! -f 'buildozer.spec' ]; then
                 buildozer init
+                # Обновляем настройки для Android
+                echo '' >> buildozer.spec
+                echo '# Android settings' >> buildozer.spec
+                echo 'android.api = 33' >> buildozer.spec
+                echo 'android.minapi = 21' >> buildozer.spec
+                echo 'android.ndk = 25b' >> buildozer.spec
+                echo 'android.sdk = 33' >> buildozer.spec
               fi
               
-              # Первая сборка может быть долгой (скачивает Android SDK)
-              echo 'This may take a while (downloading Android SDK)...'
-              timeout 1800 buildozer android debug 2>&1 | tail -200
+              # Чистим старые сборки
+              echo 'Cleaning...'
+              buildozer android clean 2>/dev/null || true
               
-              echo -e '\n=== Result ==='
-              ls -la bin/ 2>/dev/null || echo 'Build failed'
+              # Запускаем сборку с выводом прогресса
+              echo 'Building APK (this may take 15-30 minutes)...'
+              buildozer android debug 2>&1 | while IFS= read -r line; do
+                echo \"\$line\"
+                # Показываем прогресс скачивания
+                if [[ \"\$line\" == *\"Downloading\"* ]] || [[ \"\$line\" == *\"Unpacking\"* ]]; then
+                  echo \"Progress: \$line\"
+                fi
+              done
+              
+              echo -e '\n=== Build result ==='
+              if [ -d 'bin' ]; then
+                ls -la bin/
+                echo 'APK files:'
+                find bin/ -name '*.apk' -type f
+              else
+                echo 'Build failed - no bin directory'
+                exit 1
+              fi
             "
 
       - name: Upload APK
@@ -51,3 +72,13 @@ jobs:
         with:
           name: android-apk
           path: bin/*.apk
+          retention-days: 7
+
+      - name: Debug if failed
+        if: failure()
+        run: |
+          echo '=== Debug information ==='
+          ls -la .buildozer/ 2>/dev/null || echo 'No .buildozer directory'
+          echo ''
+          echo 'Last 100 lines of log:'
+          tail -100 .buildozer/android/platform/build-*/buildozer.log 2>/dev/null || echo 'No log file found'
