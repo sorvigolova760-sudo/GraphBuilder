@@ -22,19 +22,21 @@ jobs:
           python-version: '3.11'
 
       # 3. Устанавливаем системные зависимости
-      - name: Install system dependencies
-        run: |
-          sudo apt-get update
-          # Ключевые зависимости для сборки приложений и пакетов
-          sudo apt-get install -y \
-            python3-pip python3-dev build-essential \
-            libsdl2-dev libmtdev-dev libgstreamer1.0-dev \
-            libgstreamer-plugins-base1.0-dev libgl1-mesa-dev \
-            libgles2-mesa-dev libjpeg-dev libpng-dev \
-            libavformat-dev libswscale-dev libxrandr-dev \
-            libxi-dev libxcursor-dev libxinerama-dev \
-            libxcomposite-dev libffi-dev libssl-dev \
-            pkg-config fpm ruby ruby-dev
+    - name: Install system dependencies
+      run: |
+        sudo apt-get update
+    # Устанавливаем системные зависимости для сборки и FPM
+        sudo apt-get install -y \
+        python3-pip python3-dev            build-essential \
+        libsdl2-dev libmtdev-dev libgstreamer1.0-dev \
+        libgstreamer-plugins-base1.0-dev libgl1-mesa-dev \
+        libgles2-mesa-dev libjpeg-dev libpng-dev \
+        libavformat-dev libswscale-dev libxrandr-dev \
+        libxi-dev libxcursor-dev libxinerama-dev \
+        libxcomposite-dev libffi-dev libssl-dev \
+        pkg-config ruby ruby-dev rubygems
+    # Устанавливаем FPM через RubyGems
+        sudo gem install fpm
 
       # 4. Устанавливаем зависимости Python
       - name: Install Python dependencies
