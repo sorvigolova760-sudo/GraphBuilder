@@ -13,26 +13,20 @@ jobs:
         run: |
           docker build -t myapp-builder .
 
-      - name: Create directories with correct permissions
-        run: |
-          mkdir -p .buildozer bin
-          chmod 777 .buildozer bin
-
-      - name: Run Buildozer
+      - name: Run Buildozer (simple)
         run: |
           docker run --rm \
-            --user root \
             -v "$(pwd):/app" \
             -w /app \
             myapp-builder \
             bash -c "
-              # Даем права на все
-              chmod -R 777 /app
-              
+              # Меняем пользователя на root чтобы не было проблем с правами
               echo '=== Starting build ==='
               
+              # Создаем папки если их нет
+              mkdir -p .buildozer bin
+              
               if [ ! -f 'buildozer.spec' ]; then
-                echo 'Creating buildozer.spec...'
                 buildozer init
               fi
               
