@@ -18,34 +18,35 @@ jobs:
         run: |
           docker build -t myapp-builder .
 
-      - name: Run Buildozer with Android SDK
+      - name: Run Buildozer
         run: |
           docker run --rm \
             -v "$(pwd):/app" \
             -w /app \
-            -e ANDROID_HOME=/opt/android-sdk \
-            -e ANDROID_SDK_ROOT=/opt/android-sdk \
             -e BUILDOZER_NONINTERACTIVE=1 \
             myapp-builder \
             bash -c "
-              echo '=== Setting up environment ==='
-              echo 'ANDROID_HOME: \$ANDROID_HOME'
-              echo 'PATH: \$PATH'
-              ls -la /opt/android-sdk/
-              
-              echo -e '\n=== Checking Android SDK ==='
-              /opt/android-sdk/tools/bin/sdkmanager --list 2>/dev/null | head -20
+              echo '=== Environment ==='
+              echo 'Java:'
+              java -version 2>&1
+              echo -e '\nPython:'
+              python3 --version
               
               echo -e '\n=== Building APK ==='
               if [ ! -f 'buildozer.spec' ]; then
                 buildozer init
               fi
               
-              buildozer android clean 2>/dev/null || true
-              buildozer android debug
+              # Первая сборка может быть долгой (скачивает Android SDK)
+              echo 'This may take a while (downloading Android SDK)...'
+              timeout 1800 buildozer android debug 2>&1 | tail -200
+              
+              echo -e '\n=== Result ==='
+              ls -la bin/ 2>/dev/null || echo 'Build failed'
             "
 
       - name: Upload APK
+        if: success()
         uses: actions/upload-artifact@v4
         with:
           name: android-apk
