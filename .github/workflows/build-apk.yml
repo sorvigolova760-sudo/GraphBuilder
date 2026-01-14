@@ -1,28 +1,36 @@
-name: Build
+name: Build APK
 on: [push, pull_request]
 
 jobs:
-  build-android:
-    name: Build for Android
+  build:
     runs-on: ubuntu-latest
-
+    permissions:
+      contents: write
+    
     steps:
-      - name: Checkout
+      - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
+      - name: Build Docker image
+        run: |
+          docker build -t myapp-builder .
 
-      - name: Build and run Buildozer
+      - name: Build APK in container
         run: |
           docker run --rm \
-            -v "${{ github.workspace }}":/home/user/hostcwd \
-            -w /home/user/hostcwd \
-            crazymax/buildozer:latest \
-            bash -c "cd test_app && buildozer android debug"
+            -v "$(pwd):/app" \
+            -w /app \
+            myapp-builder \
+            bash -c "./build.sh"
 
-      - name: Upload APK
+      - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
           name: android-apk
-          path: test_app/bin/*.apk
+          path: bin/*.apk
+          if-no-files-found: error
+
+      - name: List build artifacts
+        run: |
+          echo "=== Build artifacts ==="
+          ls -la bin/ 2>/dev/null || echo "Bin directory not found"
