@@ -4,33 +4,41 @@ on: [push, pull_request]
 jobs:
   build:
     runs-on: ubuntu-latest
-    permissions:
-      contents: write
     
     steps:
-      - name: Checkout code
+      - name: Checkout
         uses: actions/checkout@v4
 
       - name: Build Docker image
         run: |
           docker build -t myapp-builder .
 
-      - name: Build APK in container
+      - name: Run Buildozer in container
         run: |
           docker run --rm \
-            -v "$(pwd):/app" \
-            -w /app \
+            -v "$(pwd)/bin:/app/bin" \
+            -v "$(pwd)/.buildozer:/app/.buildozer" \
             myapp-builder \
-            bash -c "./build.sh"
+            bash -c "
+              echo '=== Starting build ==='
+              ls -la
+              
+              # Инициализация если нет spec файла
+              if [ ! -f 'buildozer.spec' ]; then
+                echo 'Creating buildozer.spec...'
+                buildozer init
+              fi
+              
+              # Сборка APK
+              buildozer android clean
+              buildozer android debug
+              
+              echo '=== Build result ==='
+              ls -la bin/
+            "
 
-      - name: Upload APK artifact
+      - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
           name: android-apk
           path: bin/*.apk
-          if-no-files-found: error
-
-      - name: List build artifacts
-        run: |
-          echo "=== Build artifacts ==="
-          ls -la bin/ 2>/dev/null || echo "Bin directory not found"
