@@ -1,0 +1,28 @@
+name: Build with PyInstaller Action
+
+on: [push]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Build with PyInstaller Action
+        uses: JackMcKew/pyinstaller-action@main
+        with:
+          entry_point: 'main.py'  # Твой главный файл
+          name: 'graphbuilder'    # Имя выходного файла
+          spec: 'onefile'         # onefile или onedir
+          hidden_imports: |
+            kivy
+            kivy.graphics
+            kivy.core.window
+          extra_args: '--windowed --icon=icon.ico'
+      
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: pyinstaller-build
+          path: dist/
