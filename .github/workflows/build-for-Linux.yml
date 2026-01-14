@@ -21,11 +21,10 @@ jobs:
         with:
           python-version: '3.11'
 
-      # 3. Устанавливаем системные зависимости (ИСПРАВЛЕНО)
+      # 3. Устанавливаем системные зависимости
       - name: Install system dependencies
         run: |
           sudo apt-get update
-          # Устанавливаем системные зависимости для сборки и FPM
           sudo apt-get install -y \
             python3-pip python3-dev build-essential \
             libsdl2-dev libmtdev-dev libgstreamer1.0-dev \
@@ -35,7 +34,6 @@ jobs:
             libxi-dev libxcursor-dev libxinerama-dev \
             libxcomposite-dev libffi-dev libssl-dev \
             pkg-config ruby ruby-dev rubygems
-          # Устанавливаем FPM через RubyGems
           sudo gem install fpm
 
       # 4. Устанавливаем зависимости Python
@@ -43,38 +41,30 @@ jobs:
         run: |
           pip install --upgrade pip wheel setuptools
           pip install pyinstaller cython
-          # Основные зависимости для твоего приложения
           pip install kivy[full] kivymd numpy sympy
-          # Дополнительно устанавливаем всё из requirements.txt (если он есть)
           if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
 
-      # 5. Собираем исполняемый файл с PyInstaller
+      # 5. Собираем исполняемый файл с PyInstaller (БЕЗ .kv файлов)
       - name: Build executable with PyInstaller
         run: |
           pyinstaller --onefile \
-            --name=myapp \
+            --name=graphbuilder \
             --add-data="*.py:." \
-            --add-data="*.kv:." \
             --hidden-import=kivy \
             --hidden-import=kivymd \
             --hidden-import=numpy \
             --hidden-import=sympy \
             main.py
 
-      # 6. Создаём структуру пакета .deb с помощью FPM
+      # 6. Создаём .deb пакет с помощью FPM
       - name: Create .deb package with FPM
         run: |
-          # Создаём временную структуру для FPM
           mkdir -p fpm-package/usr/bin
-          mkdir -p fpm-package/usr/share/myapp
+          cp dist/graphbuilder fpm-package/usr/bin/
+          chmod 755 fpm-package/usr/bin/graphbuilder
           
-          # Копируем собранный бинарник
-          cp dist/myapp fpm-package/usr/bin/
-          chmod 755 fpm-package/usr/bin/myapp
-          
-          # Создаём .deb пакет с помощью FPM
           fpm -s dir -t deb \
-            -n myapp \
+            -n graphbuilder \
             -v 1.0.0-${{ github.run_number }} \
             -C fpm-package \
             --description "Graph Builder Application (Kivy)" \
@@ -90,11 +80,11 @@ jobs:
           echo "Package created:"
           ls -lh *.deb
 
-      # 7. Загружаем артефакты (исполняемый файл и .deb пакет)
+      # 7. Загружаем артефакты
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
           name: linux-package
           path: |
-            dist/myapp
-            myapp_*.deb
+            dist/graphbuilder
+            graphbuilder_*.deb
