@@ -1,4 +1,4 @@
-name: Build with PyInstaller Action
+name: Build Executable
 
 on: [push]
 
@@ -9,20 +9,17 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       
-      - name: Build with PyInstaller Action
-        uses: JackMcKew/pyinstaller-action@main
+      - name: Build executable
+        uses: nschloe/executable-build@v2
         with:
-          entry_point: 'main.py'  # Твой главный файл
-          name: 'graphbuilder'    # Имя выходного файла
-          spec: 'onefile'         # onefile или onedir
-          hidden_imports: |
-            kivy
-            kivy.graphics
-            kivy.core.window
-          extra_args: '--windowed --icon=icon.ico'
+          python-version: '3.11'
+          requirements: 'requirements.txt'
+          script: 'main.py'
+          name: 'graphbuilder'
+          onefile: true
       
-      - name: Upload artifact
+      - name: Upload
         uses: actions/upload-artifact@v4
         with:
-          name: pyinstaller-build
+          name: executable
           path: dist/
