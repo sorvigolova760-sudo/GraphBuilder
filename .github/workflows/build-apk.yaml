@@ -10,6 +10,10 @@ jobs:
     
     - name: Install dependencies with specific autotools versions
       run: |
+        # Отключаем needrestart чтобы избежать интерактивных вопросов
+        echo 'needrestart needrestart/restart-services boolean false' | sudo debconf-set-selections
+        echo 'needrestart needrestart/restart-suggestions boolean false' | sudo debconf-set-selections
+        
         sudo apt update
         sudo apt install -y \
             python3-pip \
@@ -29,7 +33,9 @@ jobs:
             automake=1:1.16* \
             libtool=2.4.6* \
             pkg-config \
-            gettext
+            gettext \
+            # Явно устанавливаем needrestart с нужными настройками
+            needrestart
     
     - name: Install Buildozer
       run: pip3 install buildozer cython==0.29.33
