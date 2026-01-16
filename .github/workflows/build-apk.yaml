@@ -15,29 +15,42 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v4
       
-    - name: Patch buildozer-action
+    - name: Create custom Docker container
       run: |
-        # Скачиваем и патчим action локально
-        mkdir -p .github/actions
-        cd .github/actions
+        cat > Dockerfile << 'EOF'
+        FROM docker:latest
         
-        # Клонируем репозиторий action
-        git clone https://github.com/ArtemSBulgakov/buildozer-action.git buildozer-patched
-        cd buildozer-patched
+        # Устанавливаем зависимости
+        RUN apk add --no-cache \
+            python3 py3-pip git build-base \
+            openjdk11 wget unzip \
+            sdl2 sdl2_image sdl2_mixer sdl2_ttf
         
-        # Патчим entrypoint.py чтобы убрать chown
-        sed -i "s/change_owner(env\[\"USER\"\], repository_root)/# change_owner(env[\"USER\"], repository_root)/g" /action/entrypoint.py
-        sed -i "s/subprocess.check_call(\[\"sudo\", \"chown\", \"-R\", user, repository_root\])/# subprocess.check_call([\"sudo\", \"chown\", \"-R\", user, repository_root])/g" /action/entrypoint.py
+        # Устанавливаем Buildozer
+        RUN pip3 install buildozer cython==0.29.33
         
-    - name: Build with patched Buildozer
-      uses: ./.github/actions/buildozer-patched
-      id: buildozer
-      with:
-        workdir: '.'
-        buildozer_version: stable
+        # Создаем скрипт запуска без chown
+        RUN cat > /build.sh << 'SCRIPT'
+        #!/bin/sh
+        cd /github/workspace
+        buildozer android debug
+        SCRIPT
         
-    - name: Upload APK artifact
+        RUN chmod +x /build.sh
+        EOF
+        
+        docker build -t custom-buildozer .
+        
+    - name: Run Buildozer
+      run: |
+        docker run --rm \
+          -v $GITHUB_WORKSPACE:/github/workspace \
+          -w /github/workspace \
+          custom-buildozer \
+          /build.sh
+          
+    - name: Upload APK
       uses: actions/upload-artifact@v4
       with:
         name: android-app
-        path: ${{ steps.buildozer.outputs.filename }}
+        path: bin/*.apk
