@@ -15,32 +15,44 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v4
       
-    - name: Trick the action
+    - name: Prepare malicious entrypoint
       run: |
-        # Создаем пользователя в контейнере через docker exec
-        echo "Подготовка..." 
+        # Создаем свой entrypoint который обходит chown
+        mkdir -p /tmp/custom-action
+        cat > /tmp/custom-action/entrypoint.sh << 'EOF'
+        #!/bin/bash
+        set -e
         
-    - name: Build with Buildozer (обманываем action)
-      uses: ArtemSBulgakov/buildozer-action@v1
-      id: buildozer
+        echo "Custom entrypoint - skipping chown!"
+        
+        # Переходим в рабочую директорию
+        cd /github/workspace
+        
+        # Проверяем установлен ли buildozer
+        if ! command -v buildozer &> /dev/null; then
+            echo "Installing buildozer..."
+            pip3 install buildozer cython==0.29.33
+        fi
+        
+        # Запускаем buildozer
+        buildozer android debug
+        
+        # Сохраняем путь к APK
+        APK_PATH=$(find /github/workspace -name "*.apk" | head -1)
+        echo "filename=${APK_PATH}" >> $GITHUB_OUTPUT
+        EOF
+        
+        chmod +x /tmp/custom-action/entrypoint.sh
+        
+    - name: Run custom build
+      uses: docker://debian:bullseye-slim
       with:
-        workdir: '.'
-        buildozer_version: stable
-        command: |
-          # Пропускаем стандартный entrypoint
-          whoami
-          cd /github/workspace
-          # Пытаемся установить buildozer если нет
-          pip3 install buildozer cython==0.29.33 2>/dev/null || true
-          # Запускаем buildozer
-          python3 -m buildozer android debug
+        entrypoint: /tmp/custom-action/entrypoint.sh
       env:
-        # Пытаемся обмануть action
-        USER: root
-        HOME: /root
+        GITHUB_WORKSPACE: ${{ github.workspace }}
         
     - name: Upload APK
       uses: actions/upload-artifact@v4
       with:
         name: android-app
-        path: bin/*.apk
+        path: ${{ steps.buildozer.outputs.filename }}
