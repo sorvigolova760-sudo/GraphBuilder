@@ -4,127 +4,90 @@ on: [push, pull_request]
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     steps:
-      - uses: actions/checkout@v4
-
-      - name: Install dependencies
-        run: |
-          sudo apt update
-          sudo apt install -y \
-              python3-pip \
-              python3-venv \
-              openjdk-17-jdk \
-              zip \
-              unzip \
-              git \
-              build-essential \
-              ffmpeg \
-              libsdl2-dev \
-              libsdl2-image-dev \
-              libsdl2-mixer-dev \
-              libsdl2-ttf-dev \
-              autoconf \
-              automake \
-              libtool \
-              libtool-bin \
-              pkg-config \
-              gettext || true
-
-          echo "Dependencies installed (needrestart warnings ignored)"
-
-      - name: Install Buildozer
-        run: pip3 install buildozer cython==0.29.33
-
-      - name: Clean previous builds
-        run: rm -rf .buildozer || true
-
-      - name: Setup Buildozer and accept licenses BEFORE build
-        run: |
-          # Initialize buildozer if needed
-          if [ ! -f "buildozer.spec" ]; then
-            buildozer init
+    - uses: actions/checkout@v4
+    
+    - name: Configure needrestart BEFORE installation
+      run: |
+        # Конфигурируем needrestart ДО установки пакетов
+        sudo apt-get update
+        sudo apt-get install -y debconf-utils
+        echo 'needrestart needrestart/restart-services string' | sudo debconf-set-selections
+        echo 'needrestart needrestart/restart-suggestions string' | sudo debconf-set-selections
+        echo 'needrestart needrestart/restart-common string' | sudo debconf-set-selections
+    
+    - name: Install dependencies with specific autotools versions
+      run: |
+        # Используем noninteractive режим
+        export DEBIAN_FRONTEND=noninteractive
+        
+        sudo apt-get install -y \
+            python3-pip \
+            python3-venv \
+            openjdk-17-jdk \
+            zip \
+            unzip \
+            git \
+            build-essential \
+            ffmpeg \
+            libsdl2-dev \
+            libsdl2-image-dev \
+            libsdl2-mixer-dev \
+            libsdl2-ttf-dev \
+            # Ключевое исправление: старые версии autotools
+            autoconf=2.69* \
+            automake=1:1.16* \
+            libtool=2.4.6* \
+            pkg-config \
+            gettext
+    
+    - name: Install Buildozer
+      run: pip3 install buildozer cython==0.29.33
+    
+    - name: Clean previous builds
+      run: rm -rf .buildozer || true
+    
+    - name: Setup Buildozer and accept licenses BEFORE build
+      run: |
+        # Инициализируем buildozer если нужно
+        if [ ! -f "buildozer.spec" ]; then
+          buildozer init
+        fi
+        
+        # Сначала запускаем buildozer, чтобы он скачал SDK
+        # Используем yes для автоматического принятия лицензий
+        echo "Downloading Android SDK..."
+        yes | buildozer android update sdk --no-ui 2>&1 | tail -50 || true
+        
+        # Альтернативный способ принять лицензии
+        if [ -d "$HOME/.buildozer/android/platform/android-sdk" ]; then
+          echo "Accepting SDK licenses..."
+          cd $HOME/.buildozer/android/platform/android-sdk
+          yes | ./tools/bin/sdkmanager --licenses 2>/dev/null || true
+          yes | ./tools/bin/sdkmanager --update 2>&1 | tail -20 || true
+        fi
+    
+    - name: Build APK with libffi fix
+      run: |
+        export BUILDOZER_ALLOW_ROOT=1
+        
+        # Пробуем собрать с несколькими попытками
+        for attempt in {1..3}; do
+          echo "Build attempt $attempt/3..."
+          buildozer android debug 2>&1 && break
+          
+          # Если сборка упала, проверяем ошибку libffi
+          if [ $attempt -lt 3 ]; then
+            echo "Build failed, cleaning and retrying in 5 seconds..."
+            rm -rf .buildozer/android/platform/build-* 2>/dev/null || true
+            sleep 5
           fi
-
-          # Download Android SDK
-          echo "Downloading Android SDK..."
-          yes | buildozer android update sdk --no-ui 2>&1 | tail -50 || true
-
-          # Accept SDK licenses
-          if [ -d "$HOME/.buildozer/android/platform/android-sdk" ]; then
-            echo "Accepting SDK licenses..."
-            cd "$HOME/.buildozer/android/platform/android-sdk"
-            yes | ./tools/bin/sdkmanager --licenses 2>/dev/null || true
-            yes | ./tools/bin/sdkmanager --update 2>&1 | tail -20 || true
-          fi
-
-          # Create prebuild script to fix libffi
-          mkdir -p .buildozer/custom
-          cat > .buildozer/custom/fix_libffi.sh << 'EOF'
-#!/bin/bash
-echo "Applying libffi patch for LT_SYS_SYMBOL_USCORE..."
-find . -name "configure.ac" -type f | while read file; do
-    echo "Patching $file"
-    sed -i 's/LT_SYS_SYMBOL_USCORE/# LT_SYS_SYMBOL_USCORE commented out for build compatibility/g' "$file"
-done
-EOF
-          chmod +x .buildozer/custom/fix_libffi.sh
-
-          # Add prebuild command to buildozer.spec
-          if [ -f "buildozer.spec" ]; then
-            echo "" >> buildozer.spec
-            echo "# Fix for libffi compilation" >> buildozer.spec
-            echo "# Run custom fix script before building libffi" >> buildozer.spec
-            echo "android.prebuild_commands = sh .buildozer/custom/fix_libffi.sh" >> buildozer.spec
-          fi
-
-      - name: Pre-patch libffi source BEFORE build
-        run: |
-          mkdir -p .buildozer/android/platform/python-for-android/pythonforandroid/recipes/libffi
-
-          cat > .buildozer/android/platform/python-for-android/pythonforandroid/recipes/libffi/__init__.py << 'EOF'
-from pythonforandroid.recipe import Recipe
-from pythonforandroid.toolchain import current_directory, shprint
-import sh
-
-class LibffiRecipe(Recipe):
-    name = 'libffi'
-    version = '3.3'
-    url = 'https://github.com/libffi/libffi/releases/download/v3.3/libffi-3.3.tar.gz'
-
-    def build_arch(self, arch):
-        build_dir = self.get_build_dir(arch.arch)
-        with current_directory(build_dir):
-            env = self.get_recipe_env(arch)
-            shprint(sh.Command('./configure'),
-                    '--host=' + arch.toolchain_prefix,
-                    '--prefix=' + self.ctx.get_python_install_dir(),
-                    '--enable-static',
-                    '--disable-shared',
-                    _env=env)
-            shprint(sh.make, '-j4', _env=env)
-            shprint(sh.make, 'install', _env=env)
-
-recipe = LibffiRecipe()
-EOF
-
-          echo "Custom libffi recipe created with patch"
-
-      - name: Build APK with patched libffi
-        run: |
-          export BUILDOZER_ALLOW_ROOT=1
-          echo "Starting build with patched libffi..."
-          buildozer android debug 2>&1 || echo "Build attempted, checking for APK..."
-
-      - name: Check for APK files
-        run: |
-          echo "Looking for APK files..."
-          find "$GITHUB_WORKSPACE" -name "*.apk" 2>/dev/null || echo "No APK found yet"
-          ls -la "$GITHUB_WORKSPACE/bin/" 2>/dev/null || echo "No bin directory"
-
-      - name: Upload APK
-        uses: actions/upload-artifact@v4
-        with:
-          name: android-apk
-          path: bin/*.apk
-          if-no-files-found: warn
+        done
+        
+    - name: Upload APK
+      uses: actions/upload-artifact@v4
+      with:
+        name: android-apk
+        path: bin/*.apk
+        if-no-files-found: warn
