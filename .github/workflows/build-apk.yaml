@@ -14,18 +14,14 @@ jobs:
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
-      
-    - name: Create 'user' with dynamic UID
+      with:
+        # Даем права на запись всем
+        persist-credentials: false
+        
+    - name: Prepare workspace
       run: |
-        # Ищем свободный UID
-        for uid in {2000..3000}; do
-          if ! id -u $uid >/dev/null 2>&1; then
-            echo "Using UID: $uid"
-            sudo useradd -m -u $uid user 2>/dev/null || sudo usermod -u $uid user 2>/dev/null || true
-            sudo chown -R $uid:$uid $GITHUB_WORKSPACE || true
-            break
-          fi
-        done
+        # Просто даем права на запись текущему пользователю (runner)
+        sudo chmod -R a+rwx $GITHUB_WORKSPACE || true
         
     - name: Build with Buildozer
       uses: ArtemSBulgakov/buildozer-action@v1
@@ -33,9 +29,13 @@ jobs:
       with:
         workdir: '.'
         buildozer_version: stable
+        # Пытаемся отключить смену владельца
+        command: |
+          cd /github/workspace
+          buildozer android debug
         
-    - name: Upload APK artifact
+    - name: Upload artifacts
       uses: actions/upload-artifact@v4
       with:
         name: android-app
-        path: ${{ steps.buildozer.outputs.filename }}
+        path: bin/*.apk
