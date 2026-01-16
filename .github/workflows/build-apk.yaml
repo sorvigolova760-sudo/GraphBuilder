@@ -33,10 +33,6 @@ jobs:
         python -m pip install --upgrade pip
         pip install buildozer cython==0.29.36
 
-    - name: Initialize Buildozer (download SDK)
-      run: |
-        buildozer android help
-
     # 🔴 ВОТ ЭТО ГЛАВНЫЙ ФИКС
     - name: Accept Android SDK licenses
       run: |
