@@ -63,27 +63,23 @@ jobs:
             echo "⚠️ Warning: Android SDK not found at expected path."
           fi
 
-      - name: Create custom sympy recipe without patches
+      - name: Remove sympy patch fix_timeutils.patch (critical fix)
         run: |
-          mkdir -p .buildozer/custom_recipes/sympy
-          cat > .buildozer/custom_recipes/sympy/__init__.py << 'EOF'
-      from pythonforandroid.recipe import PythonRecipe
-
-      class SympyRecipe(PythonRecipe):
-          version = '1.9'
-          url = 'https://files.pythonhosted.org/packages/source/s/sympy/sympy-1.9.tar.gz'
-          depends = ['setuptools', 'mpmath']
-           call_hostpython_via_targetpython = False
-          install_in_hostpython = True
-
-      recipe = SympyRecipe()
-      EOF
-          echo "✅ Custom sympy recipe created (no patches)."
+          # Locate python-for-android installation
+          P4A_PATH=$(python3 -c "import pythonforandroid; print(pythonforandroid.__path__[0])")
+          PATCH_FILE="$P4A_PATH/recipes/sympy/fix_timeutils.patch"
+          if [ -f "$PATCH_FILE" ]; then
+            echo "Removing incompatible patch: $PATCH_FILE"
+            rm -f "$PATCH_FILE"
+            echo "✅ Patch removed successfully."
+          else
+            echo "⚠️ Patch not found — skipping (may be OK)."
+          fi
 
       - name: Build APK
         run: |
           export BUILDOZER_ALLOW_ROOT=1
-          echo "Starting final APK build with custom sympy recipe..."
+          echo "Starting final APK build..."
           buildozer android debug
 
       - name: Check for APK
