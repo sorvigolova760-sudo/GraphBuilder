@@ -18,7 +18,7 @@ source.include_exts = py,png,jpg,kv,atlas
 # (list) List of inclusions using pattern matching
 #source.include_patterns = assets/*,images/*.png
 
-android.build_tools_version = 36.0.0
+android.build_tools_version = 35.0.0
 
 # (list) Source files to exclude (let empty to not exclude anything)
 #source.exclude_exts = spec
@@ -109,7 +109,7 @@ android.api = 33
 android.minapi = 21
 
 # (int) Android SDK version to use
-android.sdk = 30
+#android.sdk = 30
 
 # (str) Android NDK version to use
 android.ndk = 25b
