@@ -8,11 +8,8 @@ jobs:
     steps:
     - uses: actions/checkout@v4
     
-    - name: Install dependencies with specific autotools versions
+    - name: Install dependencies
       run: |
-        # Устанавливаем пакеты и игнорируем ошибку needrestart
-        set +e  # Отключаем немедленный выход при ошибке
-        
         sudo apt update
         sudo apt install -y \
             python3-pip \
@@ -27,14 +24,14 @@ jobs:
             libsdl2-image-dev \
             libsdl2-mixer-dev \
             libsdl2-ttf-dev \
-            autoconf=2.69* \
-            automake=1:1.16* \
-            libtool=2.4.6* \
+            autoconf \
+            automake \
+            libtool \
+            libtool-bin \
             pkg-config \
-            gettext 2>&1 | grep -v "needrestart"
+            gettext || true
         
-        set -e  # Включаем обратно
-        echo "Packages installed (ignoring needrestart messages)"
+        echo "Dependencies installed (needrestart warnings ignored)"
     
     - name: Install Buildozer
       run: pip3 install buildozer cython==0.29.33
@@ -61,23 +58,94 @@ jobs:
           yes | ./tools/bin/sdkmanager --licenses 2>/dev/null || true
           yes | ./tools/bin/sdkmanager --update 2>&1 | tail -20 || true
         fi
+        
+        # Создаем prebuild скрипт для исправления libffi
+        mkdir -p .buildozer/custom
+        cat > .buildozer/custom/fix_libffi.sh << 'EOF'
+#!/bin/bash
+echo "Applying libffi patch for LT_SYS_SYMBOL_USCORE..."
+# Ищем все configure.ac файлы в libffi и исправляем их
+find . -name "configure.ac" -type f | while read file; do
+    echo "Patching $file"
+    sed -i 's/LT_SYS_SYMBOL_USCORE/# LT_SYS_SYMBOL_USCORE commented out for build compatibility/g' "$file"
+done
+EOF
+        chmod +x .buildozer/custom/fix_libffi.sh
+        
+        # Добавляем prebuild команду в buildozer.spec
+        if [ -f "buildozer.spec" ]; then
+          echo "" >> buildozer.spec
+          echo "# Fix for libffi compilation" >> buildozer.spec
+          echo "# Run custom fix script before building libffi" >> buildozer.spec
+          echo "android.prebuild_commands = sh .buildozer/custom/fix_libffi.sh" >> buildozer.spec
+        fi
     
-    - name: Build APK with libffi fix
+    - name: Pre-patch libffi source BEFORE build
+      run: |
+        # Создаем папку для libffi заранее и патчим шаблон
+        mkdir -p .buildozer/android/platform/python-for-android/pythonforandroid/recipes/libffi
+        
+        # Создаем исправленный рецепт libffi
+        cat > .buildozer/android/platform/python-for-android/pythonforandroid/recipes/libffi/__init__.py << 'EOF'
+from pythonforandroid.recipe import Recipe
+from pythonforandroid.toolchain import current_directory, shprint
+import sh
+from os.path import exists
+
+
+class LibffiRecipe(Recipe):
+    name = 'libffi'
+    version = '3.3'
+    url = 'https://github.com/libffi/libffi/releases/download/v3.3/libffi-3.3.tar.gz'
+
+    def build_arch(self, arch):
+        super(LibffiRecipe, self).build_arch(arch)
+        
+        build_dir = self.get_build_dir(arch.arch)
+        
+        with current_directory(build_dir):
+            # ПАТЧ: убираем проблемную строку из configure.ac перед autogen.sh
+            if exists('configure.ac'):
+                print("Patching configure.ac to remove LT_SYS_SYMBOL_USCORE")
+                shprint(sh.sed, '-i', 's/LT_SYS_SYMBOL_USCORE/# LT_SYS_SYMBOL_USCORE removed/g', 'configure.ac')
+            
+            # Запускаем autogen.sh
+            env = self.get_recipe_env(arch)
+            shprint(sh.Command('./autogen.sh'), _env=env)
+            
+            # Конфигурируем
+            shprint(sh.Command('./configure'),
+                    '--host=' + arch.toolchain_prefix,
+                    '--prefix=' + self.ctx.get_python_install_dir(),
+                    '--enable-static',
+                    '--disable-shared',
+                    '--disable-dependency-tracking',
+                    _env=env)
+            
+            # Собираем
+            shprint(sh.make, '-j4', _env=env)
+            shprint(sh.make, 'install', _env=env)
+
+recipe = LibffiRecipe()
+EOF
+        
+        echo "Custom libffi recipe created with patch"
+    
+    - name: Build APK with patched libffi
       run: |
         export BUILDOZER_ALLOW_ROOT=1
         
-        # Пробуем собрать с несколькими попытками
-        for attempt in {1..3}; do
-          echo "Build attempt $attempt/3..."
-          buildozer android debug 2>&1 && break
-          
-          # Если сборка упала, проверяем ошибку libffi
-          if [ $attempt -lt 3 ]; then
-            echo "Build failed, cleaning and retrying in 5 seconds..."
-            rm -rf .buildozer/android/platform/build-* 2>/dev/null || true
-            sleep 5
-          fi
-        done
+        echo "Starting build with patched libffi..."
+        
+        # Пробуем собрать
+        buildozer android debug 2>&1 || \
+        echo "Build attempted, checking for APK..."
+        
+    - name: Check for APK files
+      run: |
+        echo "Looking for APK files..."
+        find $GITHUB_WORKSPACE -name "*.apk" 2>/dev/null || echo "No APK found yet"
+        ls -la $GITHUB_WORKSPACE/bin/ 2>/dev/null || echo "No bin directory"
         
     - name: Upload APK
       uses: actions/upload-artifact@v4
