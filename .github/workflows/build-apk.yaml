@@ -11,21 +11,33 @@ jobs:
     name: Build for Android
     runs-on: ubuntu-latest
     
-    container:
-      image: kivy/buildozer:latest
-      options: --user root
-      
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
       
-    - name: Build with Buildozer
+    - name: Patch buildozer-action
       run: |
-        cd $GITHUB_WORKSPACE
-        buildozer android debug
+        # Скачиваем и патчим action локально
+        mkdir -p .github/actions
+        cd .github/actions
+        
+        # Клонируем репозиторий action
+        git clone https://github.com/ArtemSBulgakov/buildozer-action.git buildozer-patched
+        cd buildozer-patched
+        
+        # Патчим entrypoint.py чтобы убрать chown
+        sed -i "s/change_owner(env\[\"USER\"\], repository_root)/# change_owner(env[\"USER\"], repository_root)/g" /action/entrypoint.py
+        sed -i "s/subprocess.check_call(\[\"sudo\", \"chown\", \"-R\", user, repository_root\])/# subprocess.check_call([\"sudo\", \"chown\", \"-R\", user, repository_root])/g" /action/entrypoint.py
+        
+    - name: Build with patched Buildozer
+      uses: ./.github/actions/buildozer-patched
+      id: buildozer
+      with:
+        workdir: '.'
+        buildozer_version: stable
         
     - name: Upload APK artifact
       uses: actions/upload-artifact@v4
       with:
         name: android-app
-        path: $GITHUB_WORKSPACE/bin/*.apk
+        path: ${{ steps.buildozer.outputs.filename }}
