@@ -138,8 +138,7 @@ EOF
         echo "Starting build with patched libffi..."
         
         # Пробуем собрать
-        buildozer android debug 2>&1 || \
-        echo "Build attempted, checking for APK..."
+        buildozer android debug 2>&1 || echo "Build attempted, checking for APK..."
         
     - name: Check for APK files
       run: |
