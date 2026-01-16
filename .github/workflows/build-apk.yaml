@@ -39,12 +39,6 @@ jobs:
     - name: Download Android SDK (first run)
       run: |
         buildozer android debug || true
-
-    # ─────────────────────────────────────────────
-    # 2️⃣ ПРИНИМАЕМ ВСЕ ЛИЦЕНЗИИ (SDK УЖЕ СУЩЕСТВУЕТ)
-    # ─────────────────────────────────────────────
-    - name: Accept Android SDK licenses
-      run: |
         yes | ~/.buildozer/android/platform/android-sdk/cmdline-tools/latest/bin/sdkmanager --licenses
 
     # ─────────────────────────────────────────────
