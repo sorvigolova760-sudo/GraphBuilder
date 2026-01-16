@@ -11,31 +11,21 @@ jobs:
     name: Build for Android
     runs-on: ubuntu-latest
     
+    container:
+      image: kivy/buildozer:latest
+      options: --user root
+      
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
-      with:
-        # Даем права на запись всем
-        persist-credentials: false
-        
-    - name: Prepare workspace
-      run: |
-        # Просто даем права на запись текущему пользователю (runner)
-        sudo chmod -R a+rwx $GITHUB_WORKSPACE || true
-        
+      
     - name: Build with Buildozer
-      uses: ArtemSBulgakov/buildozer-action@v1
-      id: buildozer
-      with:
-        workdir: '.'
-        buildozer_version: stable
-        # Пытаемся отключить смену владельца
-        command: |
-          cd /github/workspace
-          buildozer android debug
+      run: |
+        cd $GITHUB_WORKSPACE
+        buildozer android debug
         
-    - name: Upload artifacts
+    - name: Upload APK artifact
       uses: actions/upload-artifact@v4
       with:
         name: android-app
-        path: bin/*.apk
+        path: $GITHUB_WORKSPACE/bin/*.apk
