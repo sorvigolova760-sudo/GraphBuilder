@@ -18,8 +18,6 @@ source.include_exts = py,png,jpg,kv,atlas
 # (list) List of inclusions using pattern matching
 #source.include_patterns = assets/*,images/*.png
 
-android.build_tools_version = 35.0.0
-
 # (list) Source files to exclude (let empty to not exclude anything)
 #source.exclude_exts = spec
 
@@ -39,7 +37,7 @@ version = 0.2
 
 # (list) Application requirements
 # comma separated e.g. requirements = sqlite3,kivy
-requirements = python3,kivy,kivymd,numpy,mpmath,sympy
+requirements = python3,setuptools,pip,kivy,kivymd,numpy,mpmath,sympy
 
 # (str) Custom source folders for requirements
 # Sets custom source for any requirements with recipes
