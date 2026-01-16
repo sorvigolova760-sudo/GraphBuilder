@@ -1,4 +1,4 @@
-name: Build Android App
+name: Build Android APK
 
 on:
   push:
@@ -8,34 +8,88 @@ on:
 
 jobs:
   build-android:
-    name: Build for Android
+    name: Build Android APK
     runs-on: ubuntu-latest
     
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
       
-    - name: Build with community container
-      uses: docker://kivy/buildozer:latest
+    - name: Setup Python
+      uses: actions/setup-python@v4
       with:
-        args: android debug
-      env:
-        WORKDIR: ${{ github.workspace }}
+        python-version: '3.9'
         
-    - name: Find and upload APK
+    - name: Install system dependencies
       run: |
-        APK_FILE=$(find $GITHUB_WORKSPACE -name "*.apk" | head -1)
-        if [ -f "$APK_FILE" ]; then
-          echo "APK found: $APK_FILE"
-          echo "apk_path=$APK_FILE" >> $GITHUB_ENV
-        else
-          echo "No APK found!"
-          ls -la $GITHUB_WORKSPACE/bin/ || true
+        sudo apt-get update -y
+        sudo apt-get install -y \
+            git \
+            build-essential \
+            ffmpeg \
+            libsdl2-dev \
+            libsdl2-image-dev \
+            libsdl2-mixer-dev \
+            libsdl2-ttf-dev \
+            libportmidi-dev \
+            libswscale-dev \
+            libavformat-dev \
+            libavcodec-dev \
+            libjpeg-dev \
+            zlib1g-dev \
+            openjdk-17-jdk \
+            unzip \
+            wget \
+            curl \
+            zip \
+            python3-venv
+            
+    - name: Create virtual environment
+      run: |
+        python3 -m venv venv
+        source venv/bin/activate
+        pip install --upgrade pip setuptools wheel
+        
+    - name: Install buildozer and dependencies
+      run: |
+        source venv/bin/activate
+        pip install cython==0.29.33
+        pip install buildozer
+        
+    - name: Configure environment
+      run: |
+        source venv/bin/activate
+        mkdir -p ~/.android
+        touch ~/.android/repositories.cfg
+        echo "BUILDOZER_ALLOW_ROOT=1" >> $GITHUB_ENV
+        
+    - name: Build APK with buildozer
+      run: |
+        source venv/bin/activate
+        cd $GITHUB_WORKSPACE
+        
+        # Инициализируем buildozer если нет .spec файла
+        if [ ! -f "buildozer.spec" ]; then
+          buildozer init
         fi
         
-    - name: Upload artifact
+        # Собираем APK
+        echo "Starting build..."
+        buildozer android debug
+        
+    - name: List build artifacts
+      run: |
+        echo "=== Directory structure ==="
+        find $GITHUB_WORKSPACE -type f -name "*.apk" | head -20
+        echo "=== bin directory ==="
+        ls -la $GITHUB_WORKSPACE/bin/ 2>/dev/null || echo "No bin directory"
+        
+    - name: Upload APK artifact
       uses: actions/upload-artifact@v4
       with:
         name: android-app
-        path: ${{ env.apk_path }}
+        path: |
+          ${{ github.workspace }}/bin/*.apk
+          ${{ github.workspace }}/*.apk
         if-no-files-found: warn
+        retention-days: 7
