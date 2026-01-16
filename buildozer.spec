@@ -18,6 +18,8 @@ source.include_exts = py,png,jpg,kv,atlas
 # (list) List of inclusions using pattern matching
 #source.include_patterns = assets/*,images/*.png
 
+android.build_tools_version = 36.0.0
+
 # (list) Source files to exclude (let empty to not exclude anything)
 #source.exclude_exts = spec
 
@@ -397,6 +399,8 @@ ios.codesign.allowed = false
 # (str) URL pointing to a large icon (512x512px) to be used by iTunes
 # This option should be defined along with `app_url` and `display_image_url` options.
 #ios.manifest.full_size_image_url =
+
+[android]
 
 accept_sdk_license = True
 
