@@ -34,8 +34,6 @@ jobs:
         pip install buildozer cython==0.29.36
 
     - name: Build APK
-      env:
-        ANDROIDSDK_ACCEPT_LICENSES:     android-sdk-license
       run: |
         buildozer android debug
 
