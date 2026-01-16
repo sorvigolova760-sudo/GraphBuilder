@@ -33,7 +33,22 @@ jobs:
         python -m pip install --upgrade pip
         pip install buildozer cython==0.29.36
 
-    - name: Cache Buildozer directories
+    - name: Initialize Buildozer (download SDK)
+      run: |
+        buildozer android help
+
+    # 🔴 ВОТ ЭТО ГЛАВНЫЙ ФИКС
+    - name: Accept Android SDK licenses
+      run: |
+        yes | ~/.buildozer/android/platform/android-sdk/cmdline-tools/latest/bin/sdkmanager --licenses
+
+    - name: Install required Android SDK packages
+      run: |
+        ~/.buildozer/android/platform/android-sdk/cmdline-tools/latest/bin/sdkmanager \
+          "build-tools;36.0.0" \
+          "platforms;android-33"
+
+    - name: Cache Buildozer
       uses: actions/cache@v4
       with:
         path: |
