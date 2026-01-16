@@ -43,7 +43,7 @@ jobs:
       - name: Ensure buildozer.spec exists
         run: |
           if [ ! -f "buildozer.spec" ]; then
-            echo "❌ ERROR: buildozer.spec not found in repository root!" >&2
+            echo "❌ ERROR: buildozer.spec not found!" >&2
             exit 1
           fi
           echo "✅ buildozer.spec is present."
@@ -63,33 +63,27 @@ jobs:
             echo "⚠️ Warning: Android SDK not found at expected path."
           fi
 
-      - name: Patch libffi to fix LT_SYS_SYMBOL_USCORE
+      - name: Create custom sympy recipe without patches
         run: |
-          export BUILDOZER_ALLOW_ROOT=1
-          echo "Triggering source extraction (will time out intentionally)..."
-          timeout 60s buildozer android debug 2>/dev/null || true
+          mkdir -p .buildozer/custom_recipes/sympy
+          cat > .buildozer/custom_recipes/sympy/__init__.py << 'EOF'
+from pythonforandroid.recipe import PythonRecipe
 
-          echo "Patching configure.ac in libffi..."
-          FOUND=0
-          while IFS= read -r -d '' file; do
-            echo "  → Patching $file"
-            sed -i 's/LT_SYS_SYMBOL_USCORE/#LT_SYS_SYMBOL_USCORE/g' "$file"
-            FOUND=1
-          done < <(find . -path "*/libffi*/configure.ac" -print0)
+class SympyRecipe(PythonRecipe):
+    version = '1.9'
+    url = 'https://files.pythonhosted.org/packages/source/s/sympy/sympy-1.9.tar.gz'
+    depends = ['setuptools', 'mpmath']
+    call_hostpython_via_targetpython = False
+    install_in_hostpython = True
 
-          if [ "$FOUND" -eq 0 ]; then
-            echo "⚠️ No libffi configure.ac found — patch skipped."
-          else
-            echo "✅ libffi patched successfully."
-          fi
-
-      - name: Remove sympy patch incompatible with v1.9
-        run: rm -f $HOME/.buildozer/android/platform/python-for-android/pythonforandroid/recipes/sympy/*.patch
+recipe = SympyRecipe()
+EOF
+          echo "✅ Custom sympy recipe created (no patches)."
 
       - name: Build APK
         run: |
           export BUILDOZER_ALLOW_ROOT=1
-          echo "Starting final APK build..."
+          echo "Starting final APK build with custom sympy recipe..."
           buildozer android debug
 
       - name: Check for APK
