@@ -83,6 +83,9 @@ jobs:
             echo "✅ libffi patched successfully."
           fi
 
+      - name: Remove sympy patch incompatible with v1.9
+        run: rm -f $HOME/.buildozer/android/platform/python-for-android/pythonforandroid/recipes/sympy/*.patch
+
       - name: Build APK
         run: |
           export BUILDOZER_ALLOW_ROOT=1
