@@ -8,6 +8,7 @@ on:
 jobs:
   build:
     runs-on: ubuntu-22.04
+
     steps:
     - name: Checkout repo
       uses: actions/checkout@v4
@@ -15,110 +16,61 @@ jobs:
     - name: Set up Python
       uses: actions/setup-python@v5
       with:
-        python-version: '3.10'
+        python-version: "3.10"
 
     - name: Install system dependencies
       run: |
         sudo apt update
-        sudo apt install -y git zip unzip openjdk-17-jdk python3-pip \
-          autoconf libtool pkg-config zlib1g-dev libncurses5-dev libncursesw5-dev \
-          libtinfo5 cmake libffi-dev libssl-dev wget
+        sudo apt install -y \
+          git zip unzip wget \
+          openjdk-17-jdk \
+          python3-pip \
+          autoconf libtool pkg-config \
+          zlib1g-dev libncurses5-dev libncursesw5-dev \
+          libtinfo5 cmake libffi-dev libssl-dev
 
     - name: Install Buildozer and Cython
       run: |
         python -m pip install --upgrade pip
         pip install "buildozer==1.5.0" "cython==0.29.36"
 
-    # 1) Первый запуск: пусть buildozer скачает части SDK (если он их ещё не скачал)
-    - name: Trigger initial Buildozer run to download SDK
+    # ─────────────────────────────────────────────
+    # 🔥 ЕДИНСТВЕННЫЙ BOOTSTRAP-ШАГ: SDK + LICENSES
+    # ─────────────────────────────────────────────
+    - name: Bootstrap Android SDK and accept licenses
       run: |
-        # Первый запуск может упасть — это нормально. Он создаст ~/.buildozer/android/...
+        set -euo pipefail
+
+        SDKROOT="$HOME/.buildozer/android/platform/android-sdk"
+
+        echo "== 1) Trigger buildozer to create SDK structure =="
         buildozer android debug || true
 
-    # 2) Найти sdkmanager или установить cmdline-tools (если sdkmanager всё ещё не найден)
-    - name: Ensure sdkmanager exists (find or install cmdline-tools)
-      run: |
-        set -euo pipefail
-        SDKROOT="$HOME/.buildozer/android/platform/android-sdk"
-        echo "Looking for sdkmanager under $SDKROOT ..."
-        SDKMGR=""
-        # возможные пути, где buildozer кладёт sdkmanager
-        for p in \
-          "$SDKROOT/cmdline-tools/latest/bin/sdkmanager" \
-          "$SDKROOT/cmdline-tools/bin/sdkmanager" \
-          "$SDKROOT/tools/bin/sdkmanager" \
-          "$SDKROOT/cmdline-tools/latest/bin/sdkmanager" \
-          ; do
-          if [ -x "$p" ]; then
-            SDKMGR="$p"
-            break
-          fi
-        done
-
-        if [ -z "$SDKMGR" ]; then
-          echo "sdkmanager not found — will download Android commandline tools and install into $SDKROOT/cmdline-tools/latest"
-          mkdir -p "$SDKROOT"
-          cd /tmp
-          # официальный "latest" архив (по состоянию на текущие CI это рабочая ссылка)
-          wget -q -O cmdline.zip https://dl.google.com/android/repository/commandlinetools-linux-latest.zip
-          unzip -q cmdline.zip -d cmdline_tmp
+        echo "== 2) Ensure cmdline-tools (sdkmanager) =="
+        if [ ! -x "$SDKROOT/cmdline-tools/latest/bin/sdkmanager" ]; then
+          echo "sdkmanager not found, downloading cmdline-tools manually"
           mkdir -p "$SDKROOT/cmdline-tools"
-          # содержимое архива обычно лежит в cmdline-tools
-          mv cmdline_tmp/cmdline-tools "$SDKROOT/cmdline-tools/latest"
-          rm -rf cmdline.zip cmdline_tmp
-          SDKMGR="$SDKROOT/cmdline-tools/latest/bin/sdkmanager"
+          cd /tmp
+          wget -q https://dl.google.com/android/repository/commandlinetools-linux-latest.zip
+          unzip -q commandlinetools-linux-latest.zip
+          mv cmdline-tools "$SDKROOT/cmdline-tools/latest"
         fi
 
-        if [ ! -x "$SDKMGR" ]; then
-          echo "ERROR: sdkmanager not executable at $SDKMGR"
-          ls -la "$(dirname "$SDKMGR")" || true
-          exit 1
-        fi
+        SDKMANAGER="$SDKROOT/cmdline-tools/latest/bin/sdkmanager"
+        chmod +x "$SDKMANAGER"
 
-        echo "Using sdkmanager: $SDKMGR"
-        # показать версию
-        "$SDKMGR" --version || true
+        echo "== 3) Accept ALL Android SDK licenses =="
+        yes | "$SDKMANAGER" --licenses
 
-    # 3) Автоматически принять лицензии
-    - name: Accept all Android SDK licenses
-      run: |
-        set -euo pipefail
-        SDKROOT="$HOME/.buildozer/android/platform/android-sdk"
-        # ищем sdkmanager вновь (тот же код в одном блоке)
-        CANDIDATES=(
-          "$SDKROOT/cmdline-tools/latest/bin/sdkmanager"
-          "$SDKROOT/cmdline-tools/bin/sdkmanager"
-          "$SDKROOT/tools/bin/sdkmanager"
-        )
-        SDK=""
-        for p in "${CANDIDATES[@]}"; do
-          if [ -x "$p" ]; then SDK="$p"; break; fi
-        done
-        if [ -z "$SDK" ]; then
-          echo "sdkmanager not found, aborting license accept step"
-          exit 1
-        fi
-        echo "Accepting licenses using $SDK"
-        yes | "$SDK" --licenses
+        echo "== 4) Install required SDK packages =="
+        "$SDKMANAGER" \
+          "platforms;android-33" \
+          "build-tools;35.0.0" \
+          --sdk_root="$SDKROOT"
 
-    # 4) Установим конкретную версию build-tools/платформы, если нужно (опционально)
-    - name: Install required SDK packages (explicit)
-      run: |
-        set -euo pipefail
-        SDKROOT="$HOME/.buildozer/android/platform/android-sdk"
-        SDKMAN="$SDKROOT/cmdline-tools/latest/bin/sdkmanager"
-        if [ ! -x "$SDKMAN" ]; then
-          SDKMAN="$SDKROOT/tools/bin/sdkmanager"
-        fi
-        if [ ! -x "$SDKMAN" ]; then
-          echo "sdkmanager not found for package install"
-          exit 1
-        fi
-        # Устанавливаем build-tools (подгоняй под android.build_tools_version в buildozer.spec)
-        # рекомендую 35.0.0 (более совместимая), если в spec 35.0.0 — оставь так
-        "$SDKMAN" "build-tools;35.0.0" "platforms;android-33" --sdk_root="$SDKROOT"
-
-    # 5) Наконец — итоговая сборка
+    # ─────────────────────────────────────────────
+    # ✅ ЧИСТАЯ СБОРКА (ЛИЦЕНЗИЙ БОЛЬШЕ НЕ БУДЕТ)
+    # ─────────────────────────────────────────────
     - name: Build APK
       run: |
         buildozer android debug
