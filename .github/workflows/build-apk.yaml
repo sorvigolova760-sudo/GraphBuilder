@@ -67,70 +67,34 @@ jobs:
         mkdir -p ~/.android
         touch ~/.android/repositories.cfg
         
-        # Устанавливаем переменные окружения для автоматического принятия лицензий
-        echo "sdkmanager emulator platform-tools" > ~/.android/licenses.txt
-        echo "8933bad161af4178b1185d1a37fbf41ea5269c55" >> ~/.android/licenses.txt
-        echo "d56f5187479451eabf01fb78af6dfcb131a6481e" >> ~/.android/licenses.txt
-        echo "84831b9409646a918e30573bab4c9c91346d8abd" >> ~/.android/licenses.txt
+        # Создаем файлы лицензий ДО запуска buildozer
+        mkdir -p ~/.android/licenses
+        echo "8933bad161af4178b1185d1a37fbf41ea5269c55" > ~/.android/licenses/android-sdk-license
+        echo "d56f5187479451eabf01fb78af6dfcb131a6481e" >> ~/.android/licenses/android-sdk-license
+        echo "84831b9409646a918e30573bab4c9c91346d8abd" >> ~/.android/licenses/android-sdk-license
         
-        # Устанавливаем переменные окружения для автоматического принятия лицензий
-        export BUILDOZER_ALLOW_ROOT=1
-        export PATH="$HOME/.buildozer/android/platform/android-sdk/tools/bin:$PATH"
-        
-        # Пытаемся инициализировать buildozer чтобы скачался SDK
+    - name: Initialize Buildozer if needed
+      run: |
+        source venv/bin/activate
         cd $GITHUB_WORKSPACE
+        
+        # Инициализируем buildozer если нет .spec файла
         if [ ! -f "buildozer.spec" ]; then
           buildozer init
         fi
         
-        # Принимаем лицензии автоматически
-        mkdir -p ~/.android
-        echo "8933bad161af4178b1185d1a37fbf41ea5269c55" > ~/.android/licenses/android-sdk-license
-        echo "d56f5187479451eabf01fb78af6dfcb131a6481e" >> ~/.android/licenses/android-sdk-license
-        echo "84831b9409646a918e30573bab4c9c91346d8abd" >> ~/.android/licenses/android-sdk-license
-        echo "601085b94cd77f0b54ff86406957099ebe79c4d6" > ~/.android/licenses/android-sdk-preview-license
-        echo "33b6a2b64607f11b759f320ef9dff4ae5c47d97a" > ~/.android/licenses/google-gdk-license
-        
-    - name: Build APK with buildozer (with license fix)
+    - name: Build APK with buildozer
       run: |
         source venv/bin/activate
         cd $GITHUB_WORKSPACE
         
         # Устанавливаем переменные для автоматического принятия лицензий
         export BUILDOZER_ALLOW_ROOT=1
-        export ANDROID_HOME="$HOME/.buildozer/android/platform/android-sdk"
-        export PATH="$ANDROID_HOME/tools/bin:$PATH"
-        
-        # Принимаем лицензии через yes
-        yes | $ANDROID_HOME/tools/bin/sdkmanager --licenses 2>/dev/null || true
         
         echo "Starting build..."
         
-        # Собираем APK с автоматическим принятием лицензий
-        yes | buildozer android debug 2>&1 || \
-        buildozer android debug 2>&1
-        
-    - name: Alternative build method if above fails
-      if: failure()
-      run: |
-        source venv/bin/activate
-        cd $GITHUB_WORKSPACE
-        
-        # Альтернативный метод - используем expect для автоматического ответа
-        cat > accept_licenses.exp << 'EOF'
-#!/usr/bin/expect -f
-set timeout -1
-spawn buildozer android debug
-expect "Accept? (y/N):"
-send "y\r"
-expect "Accept? (y/N):"
-send "y\r"
-expect "Accept? (y/N):"
-send "y\r"
-expect eof
-EOF
-        chmod +x accept_licenses.exp
-        ./accept_licenses.exp
+        # Собираем APK
+        buildozer android debug
         
     - name: List build artifacts
       run: |
@@ -138,8 +102,6 @@ EOF
         find $GITHUB_WORKSPACE -type f -name "*.apk" 2>/dev/null | head -20
         echo "=== bin directory ==="
         ls -la $GITHUB_WORKSPACE/bin/ 2>/dev/null || echo "No bin directory"
-        echo "=== .buildozer directory ==="
-        ls -la ~/.buildozer/ 2>/dev/null || echo "No .buildozer directory"
         
     - name: Upload APK artifact
       uses: actions/upload-artifact@v4
