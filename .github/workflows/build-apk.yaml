@@ -1,82 +1,40 @@
-name: Build Kivy APK
+name: Build GraphBuilder APK
 
-on:
+on: 
   push:
+    branches: ["main"]
+  pull_request:
     branches: ["main"]
   workflow_dispatch:
 
 jobs:
-  build:
-    runs-on: ubuntu-22.04
+  build-android:
+    name: Build APK
+    runs-on: ubuntu-latest
+
+    container:
+      image: artembulgakov/kivy-buildozer:latest
+      options: --user root  # важно для прав записи
 
     steps:
-    - name: Checkout repo
-      uses: actions/checkout@v4
+      # 1️⃣ Чекаем репозиторий
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
-    - name: Set up Python
-      uses: actions/setup-python@v5
-      with:
-        python-version: "3.10"
+      # 2️⃣ (Опционально) обновляем pip и ставим Buildozer
+      - name: Ensure Buildozer is installed
+        run: |
+          python -m pip install --upgrade pip
+          pip install "buildozer==1.5.0" "cython==0.29.36"
 
-    - name: Install system dependencies
-      run: |
-        sudo apt update
-        sudo apt install -y \
-          git zip unzip wget \
-          openjdk-17-jdk \
-          python3-pip \
-          autoconf libtool pkg-config \
-          zlib1g-dev libncurses5-dev libncursesw5-dev \
-          libtinfo5 cmake libffi-dev libssl-dev
+      # 3️⃣ Сборка APK в корне проекта
+      - name: Build APK
+        run: |
+          buildozer android debug
 
-    - name: Install Buildozer and Cython
-      run: |
-        python -m pip install --upgrade pip
-        pip install "buildozer==1.5.0" "cython==0.29.36"
-
-    # ─────────────────────────────────────────────
-    # 🔥 ЕДИНСТВЕННЫЙ BOOTSTRAP-ШАГ: SDK + LICENSES
-    # ─────────────────────────────────────────────
-    - name: Bootstrap Android SDK and accept licenses
-      run: |
-        set -euo pipefail
-
-        SDKROOT="$HOME/.buildozer/android/platform/android-sdk"
-
-        echo "== 1) Trigger buildozer to create SDK structure =="
-        buildozer android debug || true
-
-        echo "== 2) Ensure cmdline-tools (sdkmanager) =="
-        if [ ! -x "$SDKROOT/cmdline-tools/latest/bin/sdkmanager" ]; then
-          echo "sdkmanager not found, downloading cmdline-tools manually"
-          mkdir -p "$SDKROOT/cmdline-tools"
-          cd /tmp
-          wget -q https://dl.google.com/android/repository/commandlinetools-linux-latest.zip
-          unzip -q commandlinetools-linux-latest.zip
-          mv cmdline-tools "$SDKROOT/cmdline-tools/latest"
-        fi
-
-        SDKMANAGER="$SDKROOT/cmdline-tools/latest/bin/sdkmanager"
-        chmod +x "$SDKMANAGER"
-
-        echo "== 3) Accept ALL Android SDK licenses =="
-        yes | "$SDKMANAGER" --licenses
-
-        echo "== 4) Install required SDK packages =="
-        "$SDKMANAGER" \
-          "platforms;android-33" \
-          "build-tools;35.0.0" \
-          --sdk_root="$SDKROOT"
-
-    # ─────────────────────────────────────────────
-    # ✅ ЧИСТАЯ СБОРКА (ЛИЦЕНЗИЙ БОЛЬШЕ НЕ БУДЕТ)
-    # ─────────────────────────────────────────────
-    - name: Build APK
-      run: |
-        buildozer android debug
-
-    - name: Upload APK artifact
-      uses: actions/upload-artifact@v4
-      with:
-        name: kivy-apk
-        path: bin/*.apk
+      # 4️⃣ Загрузка APK в артефакты
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: kivy-apk
+          path: bin/*.apk
