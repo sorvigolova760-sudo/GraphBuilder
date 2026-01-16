@@ -398,6 +398,9 @@ ios.codesign.allowed = false
 # This option should be defined along with `app_url` and `display_image_url` options.
 #ios.manifest.full_size_image_url =
 
+[android]
+accept_sdk_license = True
+
 
 [buildozer]
 
