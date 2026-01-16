@@ -2,13 +2,12 @@ name: Build Kivy APK
 
 on:
   push:
-    branches: [ "main" ]
+    branches: ["main"]
   workflow_dispatch:
 
 jobs:
   build:
     runs-on: ubuntu-22.04
-
     steps:
     - name: Checkout repo
       uses: actions/checkout@v4
@@ -21,29 +20,105 @@ jobs:
     - name: Install system dependencies
       run: |
         sudo apt update
-        sudo apt install -y \
-          git zip unzip openjdk-17-jdk \
-          python3-pip \
-          autoconf libtool pkg-config \
-          zlib1g-dev libncurses5-dev libncursesw5-dev \
-          libtinfo5 cmake libffi-dev libssl-dev
+        sudo apt install -y git zip unzip openjdk-17-jdk python3-pip \
+          autoconf libtool pkg-config zlib1g-dev libncurses5-dev libncursesw5-dev \
+          libtinfo5 cmake libffi-dev libssl-dev wget
 
     - name: Install Buildozer and Cython
       run: |
         python -m pip install --upgrade pip
         pip install "buildozer==1.5.0" "cython==0.29.36"
 
-    # ─────────────────────────────────────────────
-    # 1️⃣ ПРОВОЦИРУЕМ СКАЧИВАНИЕ SDK (ошибка допустима)
-    # ─────────────────────────────────────────────
-    - name: Download Android SDK (first run)
+    # 1) Первый запуск: пусть buildozer скачает части SDK (если он их ещё не скачал)
+    - name: Trigger initial Buildozer run to download SDK
       run: |
+        # Первый запуск может упасть — это нормально. Он создаст ~/.buildozer/android/...
         buildozer android debug || true
-        yes | ~/.buildozer/android/platform/android-sdk/cmdline-tools/latest/bin/sdkmanager --licenses
 
-    # ─────────────────────────────────────────────
-    # 3️⃣ ЧИСТАЯ СБОРКА APK
-    # ─────────────────────────────────────────────
+    # 2) Найти sdkmanager или установить cmdline-tools (если sdkmanager всё ещё не найден)
+    - name: Ensure sdkmanager exists (find or install cmdline-tools)
+      run: |
+        set -euo pipefail
+        SDKROOT="$HOME/.buildozer/android/platform/android-sdk"
+        echo "Looking for sdkmanager under $SDKROOT ..."
+        SDKMGR=""
+        # возможные пути, где buildozer кладёт sdkmanager
+        for p in \
+          "$SDKROOT/cmdline-tools/latest/bin/sdkmanager" \
+          "$SDKROOT/cmdline-tools/bin/sdkmanager" \
+          "$SDKROOT/tools/bin/sdkmanager" \
+          "$SDKROOT/cmdline-tools/latest/bin/sdkmanager" \
+          ; do
+          if [ -x "$p" ]; then
+            SDKMGR="$p"
+            break
+          fi
+        done
+
+        if [ -z "$SDKMGR" ]; then
+          echo "sdkmanager not found — will download Android commandline tools and install into $SDKROOT/cmdline-tools/latest"
+          mkdir -p "$SDKROOT"
+          cd /tmp
+          # официальный "latest" архив (по состоянию на текущие CI это рабочая ссылка)
+          wget -q -O cmdline.zip https://dl.google.com/android/repository/commandlinetools-linux-latest.zip
+          unzip -q cmdline.zip -d cmdline_tmp
+          mkdir -p "$SDKROOT/cmdline-tools"
+          # содержимое архива обычно лежит в cmdline-tools
+          mv cmdline_tmp/cmdline-tools "$SDKROOT/cmdline-tools/latest"
+          rm -rf cmdline.zip cmdline_tmp
+          SDKMGR="$SDKROOT/cmdline-tools/latest/bin/sdkmanager"
+        fi
+
+        if [ ! -x "$SDKMGR" ]; then
+          echo "ERROR: sdkmanager not executable at $SDKMGR"
+          ls -la "$(dirname "$SDKMGR")" || true
+          exit 1
+        fi
+
+        echo "Using sdkmanager: $SDKMGR"
+        # показать версию
+        "$SDKMGR" --version || true
+
+    # 3) Автоматически принять лицензии
+    - name: Accept all Android SDK licenses
+      run: |
+        set -euo pipefail
+        SDKROOT="$HOME/.buildozer/android/platform/android-sdk"
+        # ищем sdkmanager вновь (тот же код в одном блоке)
+        CANDIDATES=(
+          "$SDKROOT/cmdline-tools/latest/bin/sdkmanager"
+          "$SDKROOT/cmdline-tools/bin/sdkmanager"
+          "$SDKROOT/tools/bin/sdkmanager"
+        )
+        SDK=""
+        for p in "${CANDIDATES[@]}"; do
+          if [ -x "$p" ]; then SDK="$p"; break; fi
+        done
+        if [ -z "$SDK" ]; then
+          echo "sdkmanager not found, aborting license accept step"
+          exit 1
+        fi
+        echo "Accepting licenses using $SDK"
+        yes | "$SDK" --licenses
+
+    # 4) Установим конкретную версию build-tools/платформы, если нужно (опционально)
+    - name: Install required SDK packages (explicit)
+      run: |
+        set -euo pipefail
+        SDKROOT="$HOME/.buildozer/android/platform/android-sdk"
+        SDKMAN="$SDKROOT/cmdline-tools/latest/bin/sdkmanager"
+        if [ ! -x "$SDKMAN" ]; then
+          SDKMAN="$SDKROOT/tools/bin/sdkmanager"
+        fi
+        if [ ! -x "$SDKMAN" ]; then
+          echo "sdkmanager not found for package install"
+          exit 1
+        fi
+        # Устанавливаем build-tools (подгоняй под android.build_tools_version в buildozer.spec)
+        # рекомендую 35.0.0 (более совместимая), если в spec 35.0.0 — оставь так
+        "$SDKMAN" "build-tools;35.0.0" "platforms;android-33" --sdk_root="$SDKROOT"
+
+    # 5) Наконец — итоговая сборка
     - name: Build APK
       run: |
         buildozer android debug
