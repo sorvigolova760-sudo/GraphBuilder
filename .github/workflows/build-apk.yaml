@@ -31,13 +31,28 @@ jobs:
     - name: Install Buildozer and Cython
       run: |
         python -m pip install --upgrade pip
-        pip install buildozer cython==0.29.36
+        pip install "buildozer==1.5.0" "cython==0.29.36"
 
+    # ─────────────────────────────────────────────
+    # 1️⃣ ПРОВОЦИРУЕМ СКАЧИВАНИЕ SDK (ошибка допустима)
+    # ─────────────────────────────────────────────
+    - name: Download Android SDK (first run)
+      run: |
+        buildozer android debug || true
+
+    # ─────────────────────────────────────────────
+    # 2️⃣ ПРИНИМАЕМ ВСЕ ЛИЦЕНЗИИ (SDK УЖЕ СУЩЕСТВУЕТ)
+    # ─────────────────────────────────────────────
+    - name: Accept Android SDK licenses
+      run: |
+        yes | ~/.buildozer/android/platform/android-sdk/cmdline-tools/latest/bin/sdkmanager --licenses
+
+    # ─────────────────────────────────────────────
+    # 3️⃣ ЧИСТАЯ СБОРКА APK
+    # ─────────────────────────────────────────────
     - name: Build APK
       run: |
         buildozer android debug
-
-
 
     - name: Upload APK artifact
       uses: actions/upload-artifact@v4
