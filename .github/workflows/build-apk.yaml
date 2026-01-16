@@ -67,17 +67,17 @@ jobs:
         run: |
           mkdir -p .buildozer/custom_recipes/sympy
           cat > .buildozer/custom_recipes/sympy/__init__.py << 'EOF'
-from pythonforandroid.recipe import PythonRecipe
+      from pythonforandroid.recipe import PythonRecipe
 
-class SympyRecipe(PythonRecipe):
-    version = '1.9'
-    url = 'https://files.pythonhosted.org/packages/source/s/sympy/sympy-1.9.tar.gz'
-    depends = ['setuptools', 'mpmath']
-    call_hostpython_via_targetpython = False
-    install_in_hostpython = True
+      class SympyRecipe(PythonRecipe):
+          version = '1.9'
+          url = 'https://files.pythonhosted.org/packages/source/s/sympy/sympy-1.9.tar.gz'
+          depends = ['setuptools', 'mpmath']
+           call_hostpython_via_targetpython = False
+          install_in_hostpython = True
 
-recipe = SympyRecipe()
-EOF
+      recipe = SympyRecipe()
+      EOF
           echo "✅ Custom sympy recipe created (no patches)."
 
       - name: Build APK
