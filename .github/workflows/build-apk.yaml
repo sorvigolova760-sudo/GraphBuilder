@@ -8,14 +8,21 @@ jobs:
     steps:
     - uses: actions/checkout@v4
     
+    - name: Configure needrestart BEFORE installation
+      run: |
+        # Конфигурируем needrestart ДО установки пакетов
+        sudo apt-get update
+        sudo apt-get install -y debconf-utils
+        echo 'needrestart needrestart/restart-services string' | sudo debconf-set-selections
+        echo 'needrestart needrestart/restart-suggestions string' | sudo debconf-set-selections
+        echo 'needrestart needrestart/restart-common string' | sudo debconf-set-selections
+    
     - name: Install dependencies with specific autotools versions
       run: |
-        # Отключаем needrestart чтобы избежать интерактивных вопросов
-        echo 'needrestart needrestart/restart-services boolean false' | sudo debconf-set-selections
-        echo 'needrestart needrestart/restart-suggestions boolean false' | sudo debconf-set-selections
+        # Используем noninteractive режим
+        export DEBIAN_FRONTEND=noninteractive
         
-        sudo apt update
-        sudo apt install -y \
+        sudo apt-get install -y \
             python3-pip \
             python3-venv \
             openjdk-17-jdk \
@@ -33,9 +40,7 @@ jobs:
             automake=1:1.16* \
             libtool=2.4.6* \
             pkg-config \
-            gettext \
-            # Явно устанавливаем needrestart с нужными настройками
-            needrestart
+            gettext
     
     - name: Install Buildozer
       run: pip3 install buildozer cython==0.29.33
