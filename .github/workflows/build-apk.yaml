@@ -61,6 +61,15 @@ jobs:
           yes | ./tools/bin/sdkmanager --licenses 2>/dev/null || true
           yes | ./tools/bin/sdkmanager --update 2>&1 | tail -20 || true
         fi
+
+    - name: Patch libffi configure.ac to fix LT_SYS_SYMBOL_USCORE
+      run: |
+        # Запускаем частичную сборку, чтобы распаковать исходники
+        export BUILDOZER_ALLOW_ROOT=1
+        timeout 60s buildozer android debug 2>/dev/null || true
+
+    # Патчим все найденные configure.ac в libffi
+        find . -path "*/libffi*/    configure.ac" -exec sed -i 's/   LT_SYS_SYMBOL_USCORE/    #LT_SYS_SYMBOL_USCORE/g' {} \;
     
     - name: Build APK with libffi fix
       run: |
