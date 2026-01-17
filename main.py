@@ -16,7 +16,7 @@ import os
 os.environ['KIVY_GL_BACKEND'] = 'gl'
 os.environ['KIVY_WINDOW'] = 'sdl2'
 from kivy.config import Config
-Config.set('graphics', 'multisamples', '0')
+Config.set('graphics', 'multisamples', '16')
 Config.set('graphics', 'width', '1000')
 Config.set('graphics', 'height', '800')
 

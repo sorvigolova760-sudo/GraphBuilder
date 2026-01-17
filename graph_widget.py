@@ -189,40 +189,54 @@ class GraphWidget(Widget):
             y += y_unit_step
 
     def _draw_function(self, area_x, area_y, area_size, area_height):
+        """Рисует график функции с корректной обрезкой по Y-границам"""
         if not self.function:
             return
+
         points = []
-        num_points = int(area_size * 2)
+        num_points = int(area_size * 3)
+    
         for i in range(num_points + 1):
             x = self.x_min + (i / num_points) * (self.x_max - self.x_min)
             try:
                 y = self.function(x)
-                if math.isinf(y):
+
+                # Пропускаем inf и nan
+                if math.isnan(y) or math.isinf(y):
                     if len(points) > 2:
                         Line(points=points, width=2.5)
                     points = []
-                    self.points.append(None)
                     continue
-                if not math.isnan(y):
-                    screen_x = self._x_to_screen(x, area_x, area_size)
-                    screen_y = self._y_to_screen(y, area_y, area_size)
-                    margin = 0
-                    if (area_y - margin <= screen_y <= area_y + area_size + margin and
-                        area_x - margin <= screen_x <= area_x + area_size + margin):
-                        points.append(screen_x)
-                        points.append(screen_y)
-                        self.points.append((x, y))
+
+                # 🔑 КЛЮЧЕВОЕ ИЗМЕНЕНИЕ: обрезаем по Y-границам
+                if y < self.y_min or y > self.y_max:
+                    # Точка вне видимой области по Y → разрыв
+                    if len(points) > 2:
+                        Line(points=points, width=2.5)
+                    points = []
+                    continue
+
+                # Преобразуем в экранные координаты
+                screen_x = self._x_to_screen(x, area_x, area_size)
+                screen_y = self._y_to_screen(y, area_y, area_size)
+
+                # Проверяем X (на всякий случай)
+                if area_x <= screen_x <= area_x + area_size:
+                    points.append(screen_x)
+                    points.append(screen_y)
+                    self.points.append((x, y))
                 else:
                     if len(points) > 2:
                         Line(points=points, width=2.5)
                     points = []
-                    self.points.append(None)
+
             except Exception:
                 if len(points) > 2:
                     Line(points=points, width=2.5)
                 points = []
-                self.points.append(None)
                 continue
+
+    # Рисуем оставшиеся точки
         if len(points) > 2:
             Line(points=points, width=2.5)
         elif len(points) == 2:
