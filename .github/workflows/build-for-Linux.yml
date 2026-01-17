@@ -91,7 +91,6 @@ jobs:
           pyinstaller --onefile \
             --name=graphbuilder \
             --add-data="*.py:." \
-            --add-data="*.kv:." \
             --additional-hooks-dir=hooks \
             --hidden-import=kivy \
             --hidden-import=kivymd \
