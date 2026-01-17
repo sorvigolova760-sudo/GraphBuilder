@@ -35,6 +35,8 @@ version = 0.3
 # version.regex = __version__ = ['"](.*)['"]
 # version.filename = %(source.dir)s/main.py
 
+version.release = auto
+
 # (list) Application requirements
 # comma separated e.g. requirements = sqlite3,kivy
 requirements = python3,setuptools,pip,kivy,kivymd,numpy,mpmath==1.3.0,sympy>=1.12
