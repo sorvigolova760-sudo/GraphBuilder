@@ -81,29 +81,16 @@ jobs:
           EOF
 
       # 5.2: Собираем исполняемый файл (ИСПРАВЛЕННЫЙ)
+      # Самый надежный вариант:
       - name: Build executable with PyInstaller
         run: |
-          # Убедимся, что все зависимости на месте
-          echo "Checking Python path..."
-          python3 -c "import sys; print('Python path:', sys.path[:3])"
-          
-          # Собираем с ВСЕМИ нужными hidden-imports
           pyinstaller --onefile \
             --name=graphbuilder \
-            --add-data="*.py:." \
-            --additional-hooks-dir=hooks \
-            --hidden-import=kivy \
-            --hidden-import=kivymd \
-            --hidden-import='kivymd.icon_definitions' \
-            --hidden-import='kivymd.icon_definitions.md_icons' \
-            --hidden-import='kivymd.uix.label' \
-            --hidden-import='kivymd.uix.button' \
-            --hidden-import='kivymd.uix.behaviors' \
-            --hidden-import=numpy \
-            --hidden-import=sympy \
-            --hidden-import=mpmath \
-            --hidden-import=pkg_resources.py2_warn \
-            --clean \
+            --collect-all kivymd \
+            --collect-all kivy \
+            --hidden-import numpy \
+            --hidden-import sympy \
+            --hidden-import mpmath \
             main.py
 
       # 5.3: Проверяем собранный файл (НОВЫЙ ШАГ)
