@@ -4,93 +4,18 @@ on: [push, pull_request]
 
 jobs:
   build:
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-
-      - name: Configure needrestart to avoid interactive prompts
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y debconf-utils
-          echo 'needrestart needrestart/restart-services string' | sudo debconf-set-selections
-          echo 'needrestart needrestart/restart-suggestions string' | sudo debconf-set-selections
-
-      - name: Install system dependencies
-        run: |
-          export DEBIAN_FRONTEND=noninteractive
-          sudo apt-get install -y \
-            python3-pip \
-            openjdk-17-jdk \
-            git \
-            build-essential \
-            ffmpeg \
-            libsdl2-dev \
-            libsdl2-image-dev \
-            libsdl2-mixer-dev \
-            libsdl2-ttf-dev \
-            autoconf \
-            automake \
-            libtool \
-            pkg-config \
-            gettext
-
-      - name: Install Buildozer and Cython
-        run: pip3 install buildozer cython==0.29.33
-
-      - name: Clean previous builds
-        run: rm -rf .buildozer || true
-
-      - name: Ensure buildozer.spec exists
-        run: |
-          if [ ! -f "buildozer.spec" ]; then
-            echo "❌ ERROR: buildozer.spec not found!" >&2
-            exit 1
-          fi
-          echo "✅ buildozer.spec is present."
-
-      - name: Download Android SDK and accept licenses
-        run: |
-          export BUILDOZER_ALLOW_ROOT=1
-          echo "Downloading Android SDK..."
-          yes | buildozer android update sdk --no-ui 2>/dev/null || true
-
-          if [ -d "$HOME/.buildozer/android/platform/android-sdk" ]; then
-            echo "Accepting SDK licenses..."
-            cd "$HOME/.buildozer/android/platform/android-sdk"
-            yes | ./tools/bin/sdkmanager --licenses 2>/dev/null || true
-            echo "Licenses accepted."
-          else
-            echo "⚠️ Warning: Android SDK not found at expected path."
-          fi
-
-      - name: Remove sympy patch fix_timeutils.patch (critical fix)
-        run: |
-          # Locate python-for-android installation
-          P4A_PATH=$(python3 -c "import pythonforandroid; print(pythonforandroid.__path__[0])")
-          PATCH_FILE="$P4A_PATH/recipes/sympy/fix_timeutils.patch"
-          if [ -f "$PATCH_FILE" ]; then
-            echo "Removing incompatible patch: $PATCH_FILE"
-            rm -f "$PATCH_FILE"
-            echo "✅ Patch removed successfully."
-          else
-            echo "⚠️ Patch not found — skipping (may be OK)."
-          fi
-
-      - name: Build APK
-        run: |
-          export BUILDOZER_ALLOW_ROOT=1
-          echo "Starting final APK build..."
-          buildozer android debug
-
-      - name: Check for APK
-        run: |
-          echo "Looking for APK files in bin/..."
-          ls -la bin/ 2>/dev/null || echo "bin/ directory not found"
-          find bin -name "*.apk" -type f || echo "No APK found"
-
-      - name: Upload APK artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: android-apk
-          path: bin/*.apk
-          if-no-files-found: warn
+    - uses: actions/checkout@v4
+    
+    - name: Build with fixed Buildozer action
+      uses: n8marti/buildozer-action@fix-user-doesnt-exist
+      with:
+        workdir: '.'
+        buildozer_version: stable
+        
+    - name: Upload APK
+      uses: actions/upload-artifact@v4
+      with:
+        name: android-apk
+        path: bin/*.apk
