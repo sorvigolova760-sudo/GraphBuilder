@@ -5,6 +5,8 @@ from kivy.metrics import dp
 from kivy.core.text import Label as CoreLabel
 import math
 
+from sympy import Ellipse
+
 class GraphWidget(Widget):
     """Виджет для рисования графика"""
     
@@ -16,15 +18,17 @@ class GraphWidget(Widget):
         self.y_min = -5
         self.y_max = 5
         self.points = []
+        self.functions = []  # список функций
+        self.intersection_points = []  # точки пересечения
         self.graph_padding = dp(20)
         self.bind(size=self.on_size, pos=self.on_size)
 
     def on_size(self, *args):
         self.draw()
 
-    def set_function(self, func):
-        self.function = func
-        self.draw()
+    def set_functions(self, funcs):
+        self.functions = funcs if funcs else []
+        self.intersection_points = []
 
     def set_ranges(self, x_min, x_max, y_min, y_max):
         self.x_min = float(x_min)
@@ -37,7 +41,9 @@ class GraphWidget(Widget):
     def draw(self):
         self.canvas.clear()
         self.points = []
-        if not self.function:
+    
+        # Используем self.functions вместо self.function
+        if not self.functions:
             return
 
         self.graph_area = (
@@ -59,8 +65,10 @@ class GraphWidget(Widget):
             self._draw_grid(square_x, square_y, square_size, square_size)
             Color(0.3, 0.3, 0.3, 1)
             self._draw_axes(square_x, square_y, square_size, square_size)
-            Color(0.4, 0.35, 0.85, 1)
+        
+            # Рисуем все функции
             self._draw_function(square_x, square_y, square_size, square_size)
+        
             Color(0.8, 0.8, 0.8, 0.3)
             Line(rectangle=(square_x, square_y, square_size, square_size), width=1)
 
@@ -188,59 +196,66 @@ class GraphWidget(Widget):
                         Rectangle(texture=texture, pos=(label_x, label_y), size=texture.size)
             y += y_unit_step
 
+
+    # Обнови _draw_function:
     def _draw_function(self, area_x, area_y, area_size, area_height):
-        """Рисует график функции с корректной обрезкой по Y-границам"""
-        if not self.function:
+        if not self.functions:
             return
 
-        points = []
-        num_points = int(area_size * 3)
-    
-        for i in range(num_points + 1):
-            x = self.x_min + (i / num_points) * (self.x_max - self.x_min)
-            try:
-                y = self.function(x)
+        colors = [(0, 0, 1), (1, 0, 0)]  # синий, красный
 
-                # Пропускаем inf и nan
-                if math.isnan(y) or math.isinf(y):
+        for idx, func in enumerate(self.functions):
+            points = []
+            num_points = max(1000, int(area_size * 3))
+            for i in range(num_points + 1):
+                x = self.x_min + (i / num_points) * (self.x_max - self.x_min)
+                try:
+                    y = func(x)
+                    if math.isnan(y) or math.isinf(y):
+                        if len(points) > 2:
+                            Color(*colors[idx])
+                            Line(points=points, width=2.5, cap='round', joint='round')
+                        points = []
+                        continue
+
+                    if y < self.y_min or y > self.y_max:
+                        if len(points) > 2:
+                            Color(*colors[idx])
+                            Line(points=points, width=2.5, cap='round', joint='round')
+                        points = []
+                        continue
+
+                    screen_x = self._x_to_screen(x, area_x, area_size)
+                    screen_y = self._y_to_screen(y, area_y, area_size)
+
+                    if area_x <= screen_x <= area_x + area_size:
+                        points.append(screen_x)
+                        points.append(screen_y)
+                    else:
+                        if len(points) > 2:
+                            Color(*colors[idx])
+                            Line(points=points, width=2.5, cap='round', joint='round')
+                        points = []
+
+                except Exception:
                     if len(points) > 2:
-                        Line(points=points, width=2.5)
+                        Color(*colors[idx])
+                        Line(points=points, width=2.5, cap='round', joint='round')
                     points = []
                     continue
 
-                # 🔑 КЛЮЧЕВОЕ ИЗМЕНЕНИЕ: обрезаем по Y-границам
-                if y < self.y_min or y > self.y_max:
-                    # Точка вне видимой области по Y → разрыв
-                    if len(points) > 2:
-                        Line(points=points, width=2.5)
-                    points = []
-                    continue
+            if len(points) >= 2:
+                Color(*colors[idx])
+                Line(points=points, width=2.5, cap='round', joint='round')
 
-                # Преобразуем в экранные координаты
+        # Рисуем точки пересечения
+        if self.intersection_points:
+            Color(0, 0, 0)  # чёрный
+            for x, y in self.intersection_points:
                 screen_x = self._x_to_screen(x, area_x, area_size)
                 screen_y = self._y_to_screen(y, area_y, area_size)
-
-                # Проверяем X (на всякий случай)
-                if area_x <= screen_x <= area_x + area_size:
-                    points.append(screen_x)
-                    points.append(screen_y)
-                    self.points.append((x, y))
-                else:
-                    if len(points) > 2:
-                        Line(points=points, width=2.5)
-                    points = []
-
-            except Exception:
-                if len(points) > 2:
-                    Line(points=points, width=2.5)
-                points = []
-                continue
-
-    # Рисуем оставшиеся точки
-        if len(points) > 2:
-            Line(points=points, width=2.5)
-        elif len(points) == 2:
-            Line(points=points, width=2.5)
+                if area_x <= screen_x <= area_x + area_size and area_y <= screen_y <= area_y + area_height:
+                    Ellipse(pos=(screen_x - 4, screen_y - 4), size=(8, 8))
 
     def _x_to_screen(self, x, area_x, area_size):
         return area_x + ((x - self.x_min) / (self.x_max - self.x_min)) * area_size

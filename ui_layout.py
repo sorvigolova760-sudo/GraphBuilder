@@ -2,7 +2,8 @@
 from kivymd.uix.boxlayout import MDBoxLayout
 from kivymd.uix.label import MDLabel
 from kivymd.uix.textfield import MDTextField
-from kivymd.uix.button import MDRaisedButton, MDFlatButton
+from kivymd.uix.button import MDButton
+from kivymd.uix.button.button import MDButtonText
 from kivymd.uix.gridlayout import MDGridLayout
 from kivymd.uix.card import MDCard
 from kivy.uix.scrollview import ScrollView
@@ -10,18 +11,17 @@ from kivy.metrics import dp
 from graph_widget import GraphWidget
 
 def build_ui(app_instance):
-    # Основной layout (заголовок + прокручиваемая область)
     root_layout = MDBoxLayout(
         orientation="vertical",
         padding=dp(10),
         spacing=dp(10)
     )
 
-    # === ЗАГОЛОВОК (всегда виден) ===
+    # === ЗАГОЛОВОК ===
     title = MDLabel(
         text="Построитель графиков функций",
         halign="center",
-        font_style="H5",
+        role="large",  # ← ИСПРАВЛЕНО: вместо font_style="H5"
         theme_text_color="Primary",
         size_hint=(1, None),
         height=dp(40)
@@ -45,72 +45,89 @@ def build_ui(app_instance):
     content.bind(minimum_height=content.setter('height'))
     app_instance.content_layout = content
 
-   # === Верхняя панель: ввод и кнопки (две строки) ===
+    # === Верхняя панель: ввод и кнопки ===
     input_card = MDCard(
         orientation="vertical",
-        padding=dp(12),  # чуть меньше отступы
+        padding=dp(12),
         size_hint=(1, None),
-        height=dp(110),  # немного выше из-за двух строк
+        height=dp(160),
         elevation=2
     )
 
-    # --- Строка 1: только поле ввода ---
-    input_row1 = MDBoxLayout(
+    # --- Строка 1: поле ввода ---
+    # --- Строка 1a: первое поле ввода ---
+    input_row1a = MDBoxLayout(
         orientation="horizontal",
         size_hint=(1, None),
         height=dp(45),
-        padding=[0, 0, 0, dp(8)]  # отступ снизу
+        padding=[0, 0, 0, dp(4)]
     )
-    app_instance.func_input = MDTextField(
+    app_instance.func_input1 = MDTextField(
         text="x**2",
-        hint_text="Введите функцию",
-        mode="fill",
+        hint_text="Функция 1",
+        mode="filled",
         font_size='14sp'
     )
-    input_row1.add_widget(app_instance.func_input)
-    input_card.add_widget(input_row1)
+    input_row1a.add_widget(app_instance.func_input1)
+    input_card.add_widget(input_row1a)
 
-    # --- Строка 2: четыре кнопки в ряд ---
+    # --- Строка 1b: второе поле ввода ---
+    input_row1b = MDBoxLayout(
+        orientation="horizontal",
+        size_hint=(1, None),
+        height=dp(45),
+        padding=[0, 0, 0, dp(4)]
+    )
+    app_instance.func_input2 = MDTextField(
+        text="x+2",
+        hint_text="Функция 2",
+        mode="filled",
+        font_size='14sp'
+    )
+    input_row1b.add_widget(app_instance.func_input2)
+    input_card.add_widget(input_row1b)
+
+    # --- Строка 2: четыре кнопки ---
     input_row2 = MDBoxLayout(
         orientation="horizontal",
         size_hint=(1, None),
         height=dp(45),
-        spacing=dp(4)  # уменьшили промежуток
+        spacing=dp(4)
     )
 
-    plot_btn = MDRaisedButton(
-        text="График",
-        size_hint_x=0.28,
+    plot_btn = MDButton(
+        MDButtonText(text="График", font_size="18sp"),
+        style="filled",
+        size_hint=(0.28, None),
         height=dp(45),
-        on_press=app_instance.plot_function,
-        font_size='18sp'
+        on_release=app_instance.plot_function
     )
 
-    reset_btn = MDRaisedButton(
-        text="Сброс",
-        size_hint_x=0.24,
+    reset_btn = MDButton(
+        MDButtonText(text="Сброс", font_size="18sp"),
+        style="filled",
+        size_hint=(0.24, None),
         height=dp(45),
-        on_press=app_instance.reset_function,
-        md_bg_color=(0.3, 0.6, 0.3, 1),
-        font_size='18sp'  # иконка крупнее
+        on_release=app_instance.reset_function,
+        md_bg_color=(0.3, 0.6, 0.3, 1)
     )
 
-    analyze_btn = MDRaisedButton(
-        text="Анализ",
-        size_hint_x=0.24,
+    analyze_btn = MDButton(
+        MDButtonText(text="Анализ", font_size="18sp"),
+        style="filled",
+        size_hint=(0.24, None),
         height=dp(45),
-        on_press=app_instance.analyze_function,
-        md_bg_color=(0.2, 0.6, 0.8, 1),
-        font_size='18sp'
+        on_release=app_instance.analyze_function,
+        md_bg_color=(0.2, 0.6, 0.8, 1)
     )
 
-    screenshot_btn = MDRaisedButton(
-        text="Фото",
-        size_hint_x=0.24,
+    screenshot_btn = MDButton(
+        MDButtonText(text="Фото", font_size="18sp"),
+        style="filled",
+        size_hint=(0.24, None),
         height=dp(45),
-        on_press=app_instance.save_screenshot,
-        md_bg_color=(0.5, 0.5, 0.5, 1),
-        font_size='18sp'
+        on_release=app_instance.save_screenshot,
+        md_bg_color=(0.5, 0.5, 0.5, 1)
     )
 
     input_row2.add_widget(plot_btn)
@@ -124,7 +141,7 @@ def build_ui(app_instance):
     graph_card = MDCard(
         padding=dp(10),
         size_hint=(1, None),
-        height=dp(400),  # Фиксированная высота для графика
+        height=dp(400),
         elevation=3,
         radius=[15, 15, 15, 15],
         md_bg_color=(0.95, 0.95, 0.95, 1)
@@ -143,16 +160,16 @@ def build_ui(app_instance):
     )
     control_title = MDLabel(
         text="Диапазоны отображения:",
-        font_style="Subtitle1",
+        role="medium",  # ← ИСПРАВЛЕНО: вместо font_style="Subtitle1"
         size_hint=(1, None),
         height=dp(30)
     )
     control_card.add_widget(control_title)
     range_grid = MDGridLayout(cols=4, spacing=dp(10), size_hint=(1, None), height=dp(50))
-    app_instance.x_min_input = MDTextField(text="-5", hint_text="X min", mode="rectangle", input_filter="float")
-    app_instance.x_max_input = MDTextField(text="5", hint_text="X max", mode="rectangle", input_filter="float")
-    app_instance.y_min_input = MDTextField(text="-5", hint_text="Y min", mode="rectangle", input_filter="float")
-    app_instance.y_max_input = MDTextField(text="5", hint_text="Y max", mode="rectangle", input_filter="float")
+    app_instance.x_min_input = MDTextField(text="-5", hint_text="X min", mode="outlined", input_filter="float")
+    app_instance.x_max_input = MDTextField(text="5", hint_text="X max", mode="outlined", input_filter="float")
+    app_instance.y_min_input = MDTextField(text="-5", hint_text="Y min", mode="outlined", input_filter="float")
+    app_instance.y_max_input = MDTextField(text="5", hint_text="Y max", mode="outlined", input_filter="float")
     for widget in [app_instance.x_min_input, app_instance.x_max_input, app_instance.y_min_input, app_instance.y_max_input]:
         range_grid.add_widget(widget)
     control_card.add_widget(range_grid)
@@ -168,7 +185,7 @@ def build_ui(app_instance):
     )
     examples_title = MDLabel(
         text="Примеры функций:",
-        font_style="Subtitle1",
+        role="medium",  # ← ИСПРАВЛЕНО
         size_hint=(1, None),
         height=dp(30)
     )
@@ -185,19 +202,17 @@ def build_ui(app_instance):
         ("exp(x)", "exp(x)", (-2, 4, -1, 20))
     ]
     for name, expr, ranges in examples:
-        btn = MDFlatButton(
-            text=name,
+        btn = MDButton(
+            MDButtonText(text=name, font_size="14sp"),
+            style="text",
             size_hint=(1, None),
             height=dp(40),
-            theme_text_color="Primary",
-            on_press=lambda inst, e=expr, r=ranges: app_instance.set_example(e, r)
+            on_release=lambda inst, e=expr, r=ranges: app_instance.set_example(e, r)
         )
         examples_grid.add_widget(btn)
     examples_card.add_widget(examples_grid)
     content.add_widget(examples_card)
 
-    # Добавляем контент в ScrollView
     scroll_view.add_widget(content)
     root_layout.add_widget(scroll_view)
-
     return root_layout
