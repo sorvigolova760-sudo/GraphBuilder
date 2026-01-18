@@ -70,46 +70,54 @@ def build_ui(app_instance):
     input_row1.add_widget(app_instance.func_input)
     input_card.add_widget(input_row1)
 
-    # --- Строка 2: три кнопки в ряд ---
+    # --- Строка 2: четыре кнопки в ряд ---
     input_row2 = MDBoxLayout(
         orientation="horizontal",
         size_hint=(1, None),
         height=dp(45),
-        spacing=dp(6)
+        spacing=dp(4)  # уменьшили промежуток
     )
 
     plot_btn = MDRaisedButton(
         text="График",
-        size_hint_x=0.33,
+        size_hint_x=0.28,
         height=dp(45),
         on_press=app_instance.plot_function,
-        font_size='12sp'
+        font_size='18sp'
     )
 
     reset_btn = MDRaisedButton(
         text="Сброс",
-        size_hint_x=0.33,
+        size_hint_x=0.24,
         height=dp(45),
         on_press=app_instance.reset_function,
         md_bg_color=(0.3, 0.6, 0.3, 1),
-        font_size='12sp'
+        font_size='18sp'  # иконка крупнее
     )
 
     analyze_btn = MDRaisedButton(
         text="Анализ",
-        size_hint_x=0.34,
+        size_hint_x=0.24,
         height=dp(45),
         on_press=app_instance.analyze_function,
         md_bg_color=(0.2, 0.6, 0.8, 1),
-        font_size='12sp'
+        font_size='18sp'
+    )
+
+    screenshot_btn = MDRaisedButton(
+        text="Фото",
+        size_hint_x=0.24,
+        height=dp(45),
+        on_press=app_instance.save_screenshot,
+        md_bg_color=(0.5, 0.5, 0.5, 1),
+        font_size='18sp'
     )
 
     input_row2.add_widget(plot_btn)
     input_row2.add_widget(reset_btn)
     input_row2.add_widget(analyze_btn)
+    input_row2.add_widget(screenshot_btn)
     input_card.add_widget(input_row2)
-
-    # Добавляем карточку в контент
     content.add_widget(input_card)
 
     # === График ===

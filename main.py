@@ -148,6 +148,46 @@ class GraphFunctionApp(MDApp):
             import traceback
             traceback.print_exc()
 
+    def save_screenshot(self, *args):
+        """Сохраняет график как PNG"""
+        try:
+            import os
+            from kivy.utils import platform
+
+            if platform == 'android':
+                # Импортируем только на Android
+                from android.storage import app_storage_path
+                from jnius import autoclass
+                Environment = autoclass('android.os.Environment')
+                dir_path = Environment.getExternalStoragePublicDirectory(
+                    Environment.DIRECTORY_DOWNLOADS
+                ).toString()
+            else:
+                # На ПК сохраняем в ~/Downloads
+                dir_path = os.path.expanduser("~/Downloads")
+
+            # Убедимся, что папка существует
+            os.makedirs(dir_path, exist_ok=True)
+
+            filename = "graph_plot.png"
+            full_path = os.path.join(dir_path, filename)
+
+            # Экспортируем график
+            self.graph.export_to_png(full_path)
+
+            # Уведомление
+            from kivymd.toast import toast
+            toast(f"Скриншот сохранён:\n{filename}")
+
+            print(f"✅ Скриншот сохранён: {full_path}")
+
+        except Exception as e:
+            print(f"❌ Ошибка сохранения: {e}")
+            import traceback
+            traceback.print_exc()
+            from kivymd.toast import toast
+            toast("Ошибка сохранения скриншота")
+
     def set_example(self, expr, ranges):
         self.func_input.text = expr
         self.x_min_input.text = str(ranges[0])
