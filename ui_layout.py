@@ -21,7 +21,7 @@ def build_ui(app_instance):
     title = MDLabel(
         text="Построитель графиков функций",
         halign="center",
-        role="large",  # ← ИСПРАВЛЕНО: вместо font_style="H5"
+        role="large",
         theme_text_color="Primary",
         size_hint=(1, None),
         height=dp(40)
@@ -45,54 +45,62 @@ def build_ui(app_instance):
     content.bind(minimum_height=content.setter('height'))
     app_instance.content_layout = content
 
-    # === Верхняя панель: ввод и кнопки ===
-    input_card = MDCard(
+    # === Карточка для первой функции ===
+    func1_card = MDCard(
         orientation="vertical",
         padding=dp(12),
         size_hint=(1, None),
-        height=dp(160),
+        height=dp(90),
         elevation=2
     )
-
-    # --- Строка 1: поле ввода ---
-    # --- Строка 1a: первое поле ввода ---
-    input_row1a = MDBoxLayout(
-        orientation="horizontal",
+    title1 = MDLabel(
+        text="Функция 1",
+        role="small",
         size_hint=(1, None),
-        height=dp(45),
-        padding=[0, 0, 0, dp(4)]
+        height=dp(20)
     )
+    func1_card.add_widget(title1)
     app_instance.func_input1 = MDTextField(
         text="x**2",
-        hint_text="Функция 1",
+        hint_text="Введите функцию 1",
         mode="filled",
         font_size='14sp'
     )
-    input_row1a.add_widget(app_instance.func_input1)
-    input_card.add_widget(input_row1a)
+    func1_card.add_widget(app_instance.func_input1)
+    content.add_widget(func1_card)
 
-    # --- Строка 1b: второе поле ввода ---
-    input_row1b = MDBoxLayout(
-        orientation="horizontal",
+    # === Карточка для второй функции ===
+    func2_card = MDCard(
+        orientation="vertical",
+        padding=dp(12),
         size_hint=(1, None),
-        height=dp(45),
-        padding=[0, 0, 0, dp(4)]
+        height=dp(90),
+        elevation=2
     )
+    title2 = MDLabel(
+        text="Функция 2",
+        role="small",
+        size_hint=(1, None),
+        height=dp(20)
+    )
+    func2_card.add_widget(title2)
     app_instance.func_input2 = MDTextField(
         text="x+2",
-        hint_text="Функция 2",
+        hint_text="Введите функцию 2",
         mode="filled",
         font_size='14sp'
     )
-    input_row1b.add_widget(app_instance.func_input2)
-    input_card.add_widget(input_row1b)
+    func2_card.add_widget(app_instance.func_input2)
+    content.add_widget(func2_card)
 
-    # --- Строка 2: четыре кнопки ---
-    input_row2 = MDBoxLayout(
+    # === Кнопки в отдельной карточке ===
+    button_card = MDCard(
         orientation="horizontal",
+        padding=dp(5),
         size_hint=(1, None),
-        height=dp(45),
-        spacing=dp(4)
+        height=dp(50),
+        spacing=dp(4),
+        elevation=2
     )
 
     plot_btn = MDButton(
@@ -130,12 +138,11 @@ def build_ui(app_instance):
         md_bg_color=(0.5, 0.5, 0.5, 1)
     )
 
-    input_row2.add_widget(plot_btn)
-    input_row2.add_widget(reset_btn)
-    input_row2.add_widget(analyze_btn)
-    input_row2.add_widget(screenshot_btn)
-    input_card.add_widget(input_row2)
-    content.add_widget(input_card)
+    button_card.add_widget(plot_btn)
+    button_card.add_widget(reset_btn)
+    button_card.add_widget(analyze_btn)
+    button_card.add_widget(screenshot_btn)
+    content.add_widget(button_card)
 
     # === График ===
     graph_card = MDCard(
@@ -160,7 +167,7 @@ def build_ui(app_instance):
     )
     control_title = MDLabel(
         text="Диапазоны отображения:",
-        role="medium",  # ← ИСПРАВЛЕНО: вместо font_style="Subtitle1"
+        role="medium",
         size_hint=(1, None),
         height=dp(30)
     )
@@ -185,7 +192,7 @@ def build_ui(app_instance):
     )
     examples_title = MDLabel(
         text="Примеры функций:",
-        role="medium",  # ← ИСПРАВЛЕНО
+        role="medium",
         size_hint=(1, None),
         height=dp(30)
     )

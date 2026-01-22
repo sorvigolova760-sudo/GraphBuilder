@@ -1,11 +1,10 @@
 # graph_widget.py
 from kivy.uix.widget import Widget
-from kivy.graphics import Color, Line, Rectangle
+from kivy.graphics import Color, Line, Rectangle, Ellipse
 from kivy.metrics import dp
 from kivy.core.text import Label as CoreLabel
 import math
 
-from sympy import Ellipse
 
 class GraphWidget(Widget):
     """Виджет для рисования графика"""
@@ -250,11 +249,12 @@ class GraphWidget(Widget):
 
         # Рисуем точки пересечения
         if self.intersection_points:
+            print(f"РИСУЮ {len(self.intersection_points)} точек")
             Color(0, 0, 0)  # чёрный
             for x, y in self.intersection_points:
                 screen_x = self._x_to_screen(x, area_x, area_size)
-                screen_y = self._y_to_screen(y, area_y, area_size)
-                if area_x <= screen_x <= area_x + area_size and area_y <= screen_y <= area_y + area_height:
+                screen_y = self._y_to_screen(y, area_y, area_size)  # ← исправлено
+                if area_x <= screen_x <= area_x + area_size and area_y <= screen_y <= area_y + area_size:
                     Ellipse(pos=(screen_x - 4, screen_y - 4), size=(8, 8))
 
     def _x_to_screen(self, x, area_x, area_size):

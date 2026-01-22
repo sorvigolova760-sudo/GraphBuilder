@@ -38,7 +38,7 @@ class GraphFunctionApp(MDApp):
         self.theme_cls.primary_palette = "Purple"
         self.theme_cls.theme_style = "Light"  # ← Установим светлую тему
         layout = build_ui(self)
-        Clock.schedule_once(lambda dt: self.plot_function(), 0.5)
+        Clock.schedule_once(lambda dt: self.reset_function(), 0.5)  # ← сброс при запуске
         return layout
 
     def plot_function(self, *args):
@@ -56,16 +56,15 @@ class GraphFunctionApp(MDApp):
 
             # === РАБОТА С ПЕРВОЙ ФУНКЦИЕЙ И ПАРАМЕТРАМИ ===
             if expr1:
-                # Извлекаем параметры
                 params = self.extract_parameters(expr1)
             
                 # Создаём/обновляем слайдеры
                 if not hasattr(self, '_current_params') or set(self._current_params) != set(params):
                     self._current_params = params
                     self.update_parameter_sliders(params)
-                    # После создания слайдеров — перестраиваем график
+                    # Перестраиваем график с параметрами
                     self._rebuild_graph_with_current_params()
-                    return  # ← ВАЖНО: выходим, чтобы не дублировать построение
+                    return  # ВЫХОД, чтобы избежать дублирования
                 else:
                     # Слайдеры уже есть — строим с их значениями
                     param_values = {}
@@ -82,7 +81,7 @@ class GraphFunctionApp(MDApp):
 
                     parser1 = FunctionParser()
                     func1 = parser1.parse(expr1_with_values)
-                    funcs.insert(0, func1)  # Первая функция — в начало списка
+                    funcs.insert(0, func1)
             else:
                 # Удаляем слайдеры
                 if hasattr(self, 'param_card'):
@@ -104,14 +103,14 @@ class GraphFunctionApp(MDApp):
             self.graph.set_ranges(x_min, x_max, y_min, y_max)
 
             # Пересечения
+            intersections = []
             if len(funcs) == 2 and expr1 and expr2:
                 intersections = self.find_intersections(funcs[0], funcs[1], x_min, x_max)
-                self.graph.intersection_points = intersections
                 print(f"Точки пересечения: {intersections}")
-            else:
-                self.graph.intersection_points = []
+            self.graph.intersection_points = intersections
 
             self.graph.draw()
+            self._show_intersection_card(intersections)
 
         except Exception as e:
             print(f"✗ Ошибка построения: {e}")
@@ -121,9 +120,11 @@ class GraphFunctionApp(MDApp):
     def find_intersections(self, f1, f2, x_min, x_max, tolerance=1e-6):
         """Находит точки пересечения двух функций численно"""
         intersections = []
-        step = (x_max - x_min) / 500  # достаточно плотно
+        num_steps = 2000  # ↑ увеличено
+        step = (x_max - x_min) / num_steps
 
-        for i in range(500):
+        # Проверяем все отрезки
+        for i in range(num_steps):
             x1 = x_min + i * step
             x2 = x1 + step
             try:
@@ -141,6 +142,9 @@ class GraphFunctionApp(MDApp):
                     if root is not None:
                         y_val = f1(root)
                         intersections.append((root, y_val))
+                # Если значение близко к нулю — тоже корень
+                elif abs(diff1) < tolerance:
+                    intersections.append((x1, y1_1))
             except:
                 continue
 
@@ -199,6 +203,11 @@ class GraphFunctionApp(MDApp):
                 attrs_to_remove.append(attr)
         for attr in attrs_to_remove:
             delattr(self, attr)
+
+        # Удаляем карточку пересечений
+        if hasattr(self, 'intersection_card'):
+            self.content_layout.remove_widget(self.intersection_card)
+            delattr(self, 'intersection_card')
     
         # Сбрасываем текущие параметры
         if hasattr(self, '_current_params'):
@@ -373,6 +382,52 @@ class GraphFunctionApp(MDApp):
         except (ValueError, AttributeError):
             # Если не нашли — добавляем в конец
             self.content_layout.add_widget(self.param_card)
+    
+    def _show_intersection_card(self, intersections):
+        """Показывает карточку с точками пересечения"""
+        # Удаляем старую карточку
+        if hasattr(self, 'intersection_card'):
+            self.content_layout.remove_widget(self.intersection_card)
+
+        if not intersections:
+            return
+
+        from kivymd.uix.card import MDCard
+        from kivymd.uix.label import MDLabel
+        from kivy.metrics import dp
+
+        # Форматируем текст
+        lines = ["Точки пересечения:"]
+        for x, y in intersections:
+            lines.append(f"• ({x:.2f}, {y:.2f})")
+        text = "\n".join(lines)
+
+        self.intersection_card = MDCard(
+            orientation="vertical",
+            padding=dp(15),
+            size_hint=(1, None),
+            height=dp(40 + len(intersections) * 30),
+            elevation=2,
+            radius=[10]
+        )
+        label = MDLabel(
+            text=text,
+            halign="left",
+            font_size="14sp",
+            theme_text_color="Primary",
+            size_hint_y=None,
+            height=dp(20 + len(intersections) * 30)
+        )
+        self.intersection_card.add_widget(label)
+
+        # Вставляем карточку сразу после графика
+        graph_card = self.graph.parent
+        try:
+            children_list = list(self.content_layout.children)
+            graph_index = len(children_list) - 1 - children_list.index(graph_card)
+            self.content_layout.add_widget(self.intersection_card, index=graph_index)
+        except (ValueError, AttributeError):
+            self.content_layout.add_widget(self.intersection_card)
 
     def _on_slider_change(self, param_name, label, value):
         rounded_value = round(value * 2) / 2
@@ -412,16 +467,7 @@ class GraphFunctionApp(MDApp):
             func2 = parser2.parse(expr2)
             funcs.append(func2)
 
-        # Пересечение
-        if len(funcs) == 2:
-            x_min = float(self.x_min_input.text)
-            x_max = float(self.x_max_input.text)
-            intersections = self.find_intersections(funcs[0], funcs[1], x_min, x_max)
-            self.graph.intersection_points = intersections
-        else:
-            self.graph.intersection_points = []
-
-        # Обновляем график
+        # Сначала обновляем функции в графике
         x_min = float(self.x_min_input.text)
         x_max = float(self.x_max_input.text)
         y_min = float(self.y_min_input.text)
@@ -429,8 +475,19 @@ class GraphFunctionApp(MDApp):
 
         self.graph.set_functions(funcs)
         self.graph.set_ranges(x_min, x_max, y_min, y_max)
-        self.graph.draw()
 
+        # Теперь ищем пересечения
+        intersections = []
+        if len(funcs) == 2:
+            intersections = self.find_intersections(funcs[0], funcs[1], x_min, x_max)
+    
+        # Обновляем точки пересечения
+        self.graph.intersection_points = intersections
+
+        # Перерисовываем
+        self.graph.draw()
+        self._show_intersection_card(intersections)
+        
     def set_example(self, expr, ranges):
         self.func_input.text = expr
         self.x_min_input.text = str(ranges[0])
