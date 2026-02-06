@@ -46,67 +46,62 @@ class GraphFunctionApp(MDApp):
             expr1 = self.func_input1.text.strip()
             expr2 = self.func_input2.text.strip()
 
-            # Парсим вторую функцию (если есть)
             funcs = []
-            func2 = None
+            all_params = set()
+
+            # Обрабатываем первую функцию
+            if expr1:
+                params1 = self.extract_parameters(expr1)
+                all_params.update(params1)
+                parser1 = FunctionParser()
+                func1 = parser1.parse(expr1)
+                funcs.append(func1)
+
+            # Обрабатываем вторую функцию
             if expr2:
+                params2 = self.extract_parameters(expr2)
+                all_params.update(params2)
                 parser2 = FunctionParser()
                 func2 = parser2.parse(expr2)
                 funcs.append(func2)
 
-            # === РАБОТА С ПЕРВОЙ ФУНКЦИЕЙ И ПАРАМЕТРАМИ ===
-            if expr1:
-                params = self.extract_parameters(expr1)
-            
-                # Создаём/обновляем слайдеры
-                if not hasattr(self, '_current_params') or set(self._current_params) != set(params):
-                    self._current_params = params
-                    self.update_parameter_sliders(params)
-                    # Перестраиваем график с параметрами
-                    self._rebuild_graph_with_current_params()
-                    return  # ВЫХОД, чтобы избежать дублирования
-                else:
-                    # Слайдеры уже есть — строим с их значениями
-                    param_values = {}
-                    for p in params:
-                        if hasattr(self, f"{p}_slider"):
-                            raw_value = getattr(self, f"{p}_slider").value
-                            param_values[p] = round(raw_value * 2) / 2
-                        else:
-                            param_values[p] = 1.0
-
-                    expr1_with_values = expr1
-                    for p, val in param_values.items():
-                        expr1_with_values = re.sub(rf'\b{p}\b', str(val), expr1_with_values)
-
-                    parser1 = FunctionParser()
-                    func1 = parser1.parse(expr1_with_values)
-                    funcs.insert(0, func1)
-            else:
-                # Удаляем слайдеры
-                if hasattr(self, 'param_card'):
-                    self.content_layout.remove_widget(self.param_card)
-                    delattr(self, 'param_card')
-                if hasattr(self, '_current_params'):
-                    delattr(self, '_current_params')
-
             if not funcs:
                 return
 
-            # Устанавливаем функции и диапазоны
+            # Обновляем слайдеры для ВСЕХ параметров
+            if not hasattr(self, '_current_params') or set(self._current_params) != all_params:
+                self._current_params = list(all_params)
+                self.update_parameter_sliders(self._current_params)
+                self._rebuild_graph_with_current_params()
+                return
+
+            # Строим график с текущими значениями
             x_min = float(self.x_min_input.text)
             x_max = float(self.x_max_input.text)
             y_min = float(self.y_min_input.text)
             y_max = float(self.y_max_input.text)
 
-            self.graph.set_functions(funcs)
+            # Подставляем значения параметров
+            final_funcs = []
+            for i, expr in enumerate([expr1, expr2]):
+                if not expr:
+                    continue
+                expr_with_values = expr
+                for p in all_params:
+                    if hasattr(self, f"{p}_slider"):
+                        val = getattr(self, f"{p}_slider").value
+                        val_rounded = round(val * 2) / 2
+                        expr_with_values = re.sub(rf'\b{p}\b', str(val_rounded), expr_with_values)
+                parser = FunctionParser()
+                final_funcs.append(parser.parse(expr_with_values))
+
+            self.graph.set_functions(final_funcs)
             self.graph.set_ranges(x_min, x_max, y_min, y_max)
 
             # Пересечения
             intersections = []
-            if len(funcs) == 2 and expr1 and expr2:
-                intersections = self.find_intersections(funcs[0], funcs[1], x_min, x_max)
-                print(f"Точки пересечения: {intersections}")
+            if len(final_funcs) == 2:
+                intersections = self.find_intersections(final_funcs[0], final_funcs[1], x_min, x_max)
             self.graph.intersection_points = intersections
 
             self.graph.draw()
@@ -177,42 +172,29 @@ class GraphFunctionApp(MDApp):
             return None
 
     def reset_function(self, *args):
-        # Сбрасываем оба поля ввода
         self.func_input1.text = ""
         self.func_input2.text = ""
-    
-        # Сбрасываем диапазоны
         self.x_min_input.text = "-5"
         self.x_max_input.text = "5"
         self.y_min_input.text = "-5"
         self.y_max_input.text = "5"
-    
-        # Очищаем график
         self.graph.set_functions([])
         self.graph.draw()
     
-        # Удаляем карточку параметров (если есть)
-        if hasattr(self, 'param_card'):
-            self.content_layout.remove_widget(self.param_card)
-            delattr(self, 'param_card')
+        # Удаляем карточки
+        for attr_name in ['param_card', 'intersection_card', 'analysis_card']:
+            if hasattr(self, attr_name):
+                self.content_layout.remove_widget(getattr(self, attr_name))
+                delattr(self, attr_name)
     
-        # Удаляем все атрибуты слайдеров
-        attrs_to_remove = []
-        for attr in dir(self):
-            if attr.endswith('_slider') or attr.endswith('_label'):
-                attrs_to_remove.append(attr)
+        # Удаляем все слайдеры и метки
+        attrs_to_remove = [attr for attr in dir(self) if attr.endswith('_slider') or attr.endswith('_label')]
         for attr in attrs_to_remove:
             delattr(self, attr)
-
-        # Удаляем карточку пересечений
-        if hasattr(self, 'intersection_card'):
-            self.content_layout.remove_widget(self.intersection_card)
-            delattr(self, 'intersection_card')
     
-        # Сбрасываем текущие параметры
         if hasattr(self, '_current_params'):
             delattr(self, '_current_params')
-
+            
     def analyze_function(self, *args):
         """Анализирует ПЕРВУЮ функцию"""
         try:
@@ -435,56 +417,49 @@ class GraphFunctionApp(MDApp):
         self._rebuild_graph_with_current_params()  # ← вызываем новый метод
     
     def _rebuild_graph_with_current_params(self):
-        """Перестраивает график с текущими параметрами ПЕРВОЙ функции"""
+        """Перестраивает график с текущими параметрами из ОБЕИХ функций"""
         expr1 = self.func_input1.text.strip()
         expr2 = self.func_input2.text.strip()
 
-        if not expr1:
+        if not expr1 and not expr2:
             return
 
-        # Обрабатываем первую функцию с параметрами
-        params = self.extract_parameters(expr1)
-        param_values = {}
-        for p in params:
-            if hasattr(self, f"{p}_slider"):
-                raw_value = getattr(self, f"{p}_slider").value
-                param_values[p] = round(raw_value * 2) / 2
-            else:
-                param_values[p] = 1.0
-
-        expr1_with_values = expr1
-        for p, val in param_values.items():
-            expr1_with_values = re.sub(rf'\b{p}\b', str(val), expr1_with_values)
-
-        parser1 = FunctionParser()
-        func1 = parser1.parse(expr1_with_values)
-
-        funcs = [func1]
-
-        # Добавляем вторую функцию, если есть
+        # Собираем все параметры
+        all_params = set()
+        if expr1:
+            all_params.update(self.extract_parameters(expr1))
         if expr2:
-            parser2 = FunctionParser()
-            func2 = parser2.parse(expr2)
-            funcs.append(func2)
+            all_params.update(self.extract_parameters(expr2))
 
-        # Сначала обновляем функции в графике
+        # Подставляем значения
+        final_funcs = []
+        for expr in [expr1, expr2]:
+            if not expr:
+                continue
+            expr_with_values = expr
+            for p in all_params:
+                if hasattr(self, f"{p}_slider"):
+                    val = getattr(self, f"{p}_slider").value
+                    val_rounded = round(val * 2) / 2
+                    expr_with_values = re.sub(rf'\b{p}\b', str(val_rounded), expr_with_values)
+            parser = FunctionParser()
+            final_funcs.append(parser.parse(expr_with_values))
+
+        # Обновляем график
         x_min = float(self.x_min_input.text)
         x_max = float(self.x_max_input.text)
         y_min = float(self.y_min_input.text)
         y_max = float(self.y_max_input.text)
 
-        self.graph.set_functions(funcs)
+        self.graph.set_functions(final_funcs)
         self.graph.set_ranges(x_min, x_max, y_min, y_max)
 
-        # Теперь ищем пересечения
+        # Пересечения
         intersections = []
-        if len(funcs) == 2:
-            intersections = self.find_intersections(funcs[0], funcs[1], x_min, x_max)
-    
-        # Обновляем точки пересечения
+        if len(final_funcs) == 2:
+            intersections = self.find_intersections(final_funcs[0], final_funcs[1], x_min, x_max)
         self.graph.intersection_points = intersections
 
-        # Перерисовываем
         self.graph.draw()
         self._show_intersection_card(intersections)
         

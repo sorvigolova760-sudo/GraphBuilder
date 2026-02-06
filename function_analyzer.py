@@ -99,7 +99,7 @@ class FunctionAnalyzer:
                 return f"D(f) = {self._format_interval(domain)}"
             elif domain.is_Union:
                 parts = [self._format_interval(i) for i in domain.args]
-                return f"D(f) = {' ∪ '.join(parts)}"
+                return f"D(f) = {' U '.join(parts)}"
             else:
                 return "D(f) = R"
         except Exception:
