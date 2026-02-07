@@ -508,16 +508,16 @@ class FunctionAnalyzer:
             domain = continuous_domain(self.expr_sym, self.x_sym, S.Reals)
             
             if domain == S.Reals:
-                return "D(f) = ℝ"
+                return "D(f) = R"
             elif domain.is_Interval:
                 return f"D(f) = {self._format_interval(domain)}"
             elif domain.is_Union:
                 parts = [self._format_interval(i) for i in domain.args]
-                return f"D(f) = {' ∪ '.join(parts)}"
+                return f"D(f) = {' U '.join(parts)}"
             elif domain.is_EmptySet:
-                return "D(f) = ∅"
+                return "D(f) = Ø"
             else:
-                return "D(f) = ℝ"
+                return "D(f) = R"
                 
         except Exception as e:
             print(f"⚠️ Ошибка определения области: {e}")
@@ -538,12 +538,12 @@ class FunctionAnalyzer:
             return "D(f) зависит от подкоренного выражения"
         
         if re.search(r'/\s*x\b', expr) or '1/x' in expr:
-            return "D(f) = ℝ \\ {0}"
+            return "D(f) = R \\ {0}"
         
         if 'asin(' in expr or 'acos(' in expr or 'arcsin(' in expr or 'arccos(' in expr:
             return "D(f) = [−1; 1]"
         
-        return "D(f) = ℝ"
+        return "D(f) = R"
 
     def _analyze_range(self):
         """Анализ множества значений"""
@@ -570,7 +570,7 @@ class FunctionAnalyzer:
                     continue
             
             if not ys:
-                return "E(f) = ∅"
+                return "E(f) = Ø"
             
             y_min, y_max = min(ys), max(ys)
             
@@ -1021,7 +1021,7 @@ class FunctionAnalyzer:
     def _format_interval(self, iv):
         """Форматирование интервала для вывода"""
         if iv == S.Reals:
-            return "ℝ"
+            return "R"
         
         left = str(iv.start).replace('oo', '∞').replace('-∞', '−∞')
         right = str(iv.end).replace('oo', '∞')
