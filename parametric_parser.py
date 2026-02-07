@@ -68,6 +68,7 @@ class ParametricParser:
         expr = re.sub(r'(?<!math\.)\b(?:arcsin|asin)\(', 'math.asin(', expr)
         expr = re.sub(r'(?<!math\.)\b(?:arccos|acos)\(', 'math.acos(', expr)
         expr = re.sub(r'(?<!math\.)\b(?:arctan|atan)\(', 'math.atan(', expr)
+        expr = re.sub(r'(?<!math\.)\b(?:cot|ctg)\(', '1/math.tan(', expr)
         expr = re.sub(r'(?<!math\.)\bsin\(', 'math.sin(', expr)
         expr = re.sub(r'(?<!math\.)\bcos\(', 'math.cos(', expr)
         expr = re.sub(r'(?<!math\.)\btan\(', 'math.tan(', expr)
@@ -109,6 +110,8 @@ class ParametricParser:
                     'asin': math.asin,
                     'acos': math.acos,
                     'atan': math.atan,
+                    'cot': lambda x: 1 / math.tan(x),  # котангенс
+                    'ctg': lambda x: 1 / math.tan(x),  # котангенс (русская версия)
                     'sqrt': math.sqrt,
                     'log': math.log,
                     'exp': math.exp,
