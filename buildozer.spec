@@ -39,7 +39,7 @@ version.release = auto
 
 # (list) Application requirements
 # comma separated e.g. requirements = sqlite3,kivy
-requirements = python3,setuptools,pip,kivy,https://github.com/kivymd/KivyMD/archive/master.zip,materialyoucolor,asynckivy,numpy,mpmath==1.3.0,sympy>=1.12,android,jnius
+requirements = python3,setuptools,pip,kivy,https://github.com/kivymd/KivyMD/archive/master.zip,materialyoucolor,asynckivy,asyncgui,numpy,mpmath==1.3.0,sympy>=1.12,android,jnius
 
 # (str) Custom source folders for requirements
 # Sets custom source for any requirements with recipes
