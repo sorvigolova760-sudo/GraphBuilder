@@ -1,4 +1,4 @@
-# ui_layout.py
+# ui_layout.py (с поддержкой диапазона t для параметрических функций)
 from kivymd.uix.boxlayout import MDBoxLayout
 from kivymd.uix.label import MDLabel
 from kivymd.uix.textfield import MDTextField
@@ -6,6 +6,7 @@ from kivymd.uix.button import MDButton
 from kivymd.uix.button.button import MDButtonText
 from kivymd.uix.gridlayout import MDGridLayout
 from kivymd.uix.card import MDCard
+from kivymd.uix.selectioncontrol import MDSwitch
 from kivy.uix.scrollview import ScrollView
 from kivy.metrics import dp
 from graph_widget import GraphWidget
@@ -44,6 +45,30 @@ def build_ui(app_instance):
     )
     content.bind(minimum_height=content.setter('height'))
     app_instance.content_layout = content
+
+    # === Переключатель режима ===
+    mode_card = MDCard(
+        orientation="horizontal",
+        padding=dp(12),
+        size_hint=(1, None),
+        height=dp(50),
+        elevation=2
+    )
+
+    mode_label = MDLabel(
+        text="Параметрический режим:",
+        size_hint=(None, None),
+        width=dp(180),
+        height=dp(30)
+    )
+    mode_card.add_widget(mode_label)
+
+    app_instance.param_mode_switch = MDSwitch(active=False)
+    app_instance.param_mode_switch.bind(active=app_instance.toggle_param_mode)
+
+    mode_card.add_widget(app_instance.param_mode_switch)
+
+    content.add_widget(mode_card)
 
     # === Карточка для первой функции ===
     func1_card = MDCard(
@@ -93,20 +118,58 @@ def build_ui(app_instance):
     func2_card.add_widget(app_instance.func_input2)
     content.add_widget(func2_card)
 
-    # === Кнопки в отдельной карточке ===
-    button_card = MDCard(
-        orientation="horizontal",
-        padding=dp(5),
+    # === НОВАЯ КАРТОЧКА: Диапазон параметра t (скрыта по умолчанию) ===
+    app_instance.t_range_card = MDCard(
+        orientation="vertical",
+        padding=dp(15),
         size_hint=(1, None),
-        height=dp(50),
-        spacing=dp(4),
+        height=dp(120),
         elevation=2
     )
+    t_title = MDLabel(
+        text="Диапазон параметра t:",
+        role="medium",
+        size_hint=(1, None),
+        height=dp(30)
+    )
+    app_instance.t_range_card.add_widget(t_title)
+    
+    t_grid = MDGridLayout(cols=2, spacing=dp(10), size_hint=(1, None), height=dp(50))
+    app_instance.t_min_input = MDTextField(text="0", hint_text="t min", mode="outlined", input_filter="float")
+    app_instance.t_max_input = MDTextField(text="6.28", hint_text="t max", mode="outlined", input_filter="float")
+    t_grid.add_widget(app_instance.t_min_input)
+    t_grid.add_widget(app_instance.t_max_input)
+    app_instance.t_range_card.add_widget(t_grid)
+    
+    # НЕ добавляем сразу, будем показывать только в параметрическом режиме
+
+    # === Кнопки в карточке с горизонтальной прокруткой ===
+    button_card = MDCard(
+        padding=dp(5),
+        size_hint=(1, None),
+        height=dp(56),
+        elevation=2
+    )
+
+    button_scroll = ScrollView(
+        do_scroll_x=True,
+        do_scroll_y=False,
+        bar_width=0
+    )
+
+    button_container = MDBoxLayout(
+        orientation="horizontal",
+        size_hint=(None, None),
+        height=dp(45),
+        spacing=dp(4)
+    )
+    button_container.bind(minimum_width=button_container.setter('width'))
 
     plot_btn = MDButton(
         MDButtonText(text="График", font_size="18sp"),
         style="filled",
-        size_hint=(0.28, None),
+        size_hint=(None, None),
+        width=dp(90),
         height=dp(45),
         on_release=app_instance.plot_function
     )
@@ -114,7 +177,8 @@ def build_ui(app_instance):
     reset_btn = MDButton(
         MDButtonText(text="Сброс", font_size="18sp"),
         style="filled",
-        size_hint=(0.24, None),
+        size_hint=(None, None),
+        width=dp(90),
         height=dp(45),
         on_release=app_instance.reset_function,
         md_bg_color=(0.3, 0.6, 0.3, 1)
@@ -123,7 +187,8 @@ def build_ui(app_instance):
     analyze_btn = MDButton(
         MDButtonText(text="Анализ", font_size="18sp"),
         style="filled",
-        size_hint=(0.24, None),
+        size_hint=(None, None),
+        width=dp(90),
         height=dp(45),
         on_release=app_instance.analyze_function,
         md_bg_color=(0.2, 0.6, 0.8, 1)
@@ -132,16 +197,20 @@ def build_ui(app_instance):
     screenshot_btn = MDButton(
         MDButtonText(text="Фото", font_size="18sp"),
         style="filled",
-        size_hint=(0.24, None),
+        size_hint=(None, None),
+        width=dp(90),
         height=dp(45),
         on_release=app_instance.save_screenshot,
         md_bg_color=(0.5, 0.5, 0.5, 1)
     )
 
-    button_card.add_widget(plot_btn)
-    button_card.add_widget(reset_btn)
-    button_card.add_widget(analyze_btn)
-    button_card.add_widget(screenshot_btn)
+    button_container.add_widget(plot_btn)
+    button_container.add_widget(reset_btn)
+    button_container.add_widget(analyze_btn)
+    button_container.add_widget(screenshot_btn)
+
+    button_scroll.add_widget(button_container)
+    button_card.add_widget(button_scroll)
     content.add_widget(button_card)
 
     # === График ===
@@ -157,7 +226,7 @@ def build_ui(app_instance):
     graph_card.add_widget(app_instance.graph)
     content.add_widget(graph_card)
 
-    # === Управление диапазонами ===
+    # === Управление диапазонами (видимая область) ===
     control_card = MDCard(
         orientation="vertical",
         padding=dp(15),

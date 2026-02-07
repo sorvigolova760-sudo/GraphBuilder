@@ -54,6 +54,8 @@ class FunctionParser:
                     'e': math.e,
                     'sin': math.sin,
                     'cos': math.cos,
+                    'tg': math.tan,
+                    'tag': math.tan,
                     'tan': math.tan,
                     'asin': math.asin,
                     'acos': math.acos,

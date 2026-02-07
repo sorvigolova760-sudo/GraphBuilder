@@ -1,8 +1,8 @@
-# main.py
+# main.py (ИСПРАВЛЕНО: разделение параметров функции и параметра t)
+
 # ========== ANDROID PATCH ==========
 import sys
 
-# Патч для Python 3.11+ на Android
 if 'collections' in sys.modules:
     import collections.abc
     import collections
@@ -24,9 +24,9 @@ from kivymd.app import MDApp
 from kivy.clock import Clock
 import math
 from function_parser import FunctionParser
+from parametric_parser import ParametricParser
 from ui_layout import build_ui
 from kivy.core.text import Label as CoreLabel
-# Импорты для параметров
 from kivymd.uix.slider import MDSlider
 from kivymd.uix.label import MDLabel
 from kivymd.uix.card import MDCard
@@ -36,89 +36,218 @@ import re
 class GraphFunctionApp(MDApp):
     def build(self):
         self.theme_cls.primary_palette = "Purple"
-        self.theme_cls.theme_style = "Light"  # ← Установим светлую тему
+        self.theme_cls.theme_style = "Light"
         layout = build_ui(self)
-        Clock.schedule_once(lambda dt: self.reset_function(), 0.5)  # ← сброс при запуске
+        Clock.schedule_once(lambda dt: self.reset_function(), 0.5)
         return layout
+
+    def toggle_param_mode(self, instance, value):
+        is_param = value
+        
+        print(f"\n🔄 Переключение режима: {'ПАРАМЕТРИЧЕСКИЙ' if is_param else 'ОБЫЧНЫЙ'}")
+        
+        if is_param:
+            # === ПАРАМЕТРИЧЕСКИЙ РЕЖИМ ===
+            self.func_input1.hint_text = "x(t)"
+            self.func_input2.hint_text = "y(t)"
+            
+            # Показываем карточку с диапазоном t
+            if self.t_range_card not in self.content_layout.children:
+                try:
+                    func2_card = self.func_input2.parent
+                    children_list = list(self.content_layout.children)
+                    func2_index = len(children_list) - 1 - children_list.index(func2_card)
+                    self.content_layout.add_widget(self.t_range_card, index=func2_index)
+                    print("   ✅ Карточка t_range добавлена")
+                except (ValueError, AttributeError) as e:
+                    self.content_layout.add_widget(self.t_range_card)
+                    print(f"   ⚠️ Карточка добавлена в конец: {e}")
+            
+            # ВАЖНО: Удаляем карточку с параметрами (a, b, c и т.д.)
+            if hasattr(self, 'param_card') and self.param_card in self.content_layout.children:
+                self.content_layout.remove_widget(self.param_card)
+                print("   ✅ Карточка параметров удалена")
+                
+        else:
+            # === ОБЫЧНЫЙ РЕЖИМ ===
+            self.func_input1.hint_text = "Введите функцию 1"
+            self.func_input2.hint_text = "Введите функцию 2"
+            
+            # Скрываем карточку с диапазоном t
+            if self.t_range_card in self.content_layout.children:
+                self.content_layout.remove_widget(self.t_range_card)
+                print("   ✅ Карточка t_range удалена")
 
     def plot_function(self, *args):
         try:
-            expr1 = self.func_input1.text.strip()
-            expr2 = self.func_input2.text.strip()
-
-            funcs = []
-            all_params = set()
-
-            # Обрабатываем первую функцию
-            if expr1:
-                params1 = self.extract_parameters(expr1)
-                all_params.update(params1)
-                parser1 = FunctionParser()
-                func1 = parser1.parse(expr1)
-                funcs.append(func1)
-
-            # Обрабатываем вторую функцию
-            if expr2:
-                params2 = self.extract_parameters(expr2)
-                all_params.update(params2)
-                parser2 = FunctionParser()
-                func2 = parser2.parse(expr2)
-                funcs.append(func2)
-
-            if not funcs:
-                return
-
-            # Обновляем слайдеры для ВСЕХ параметров
-            if not hasattr(self, '_current_params') or set(self._current_params) != all_params:
-                self._current_params = list(all_params)
-                self.update_parameter_sliders(self._current_params)
-                self._rebuild_graph_with_current_params()
-                return
-
-            # Строим график с текущими значениями
-            x_min = float(self.x_min_input.text)
-            x_max = float(self.x_max_input.text)
-            y_min = float(self.y_min_input.text)
-            y_max = float(self.y_max_input.text)
-
-            # Подставляем значения параметров
-            final_funcs = []
-            for i, expr in enumerate([expr1, expr2]):
-                if not expr:
-                    continue
-                expr_with_values = expr
-                for p in all_params:
-                    if hasattr(self, f"{p}_slider"):
-                        val = getattr(self, f"{p}_slider").value
-                        val_rounded = round(val * 2) / 2
-                        expr_with_values = re.sub(rf'\b{p}\b', str(val_rounded), expr_with_values)
-                parser = FunctionParser()
-                final_funcs.append(parser.parse(expr_with_values))
-
-            self.graph.set_functions(final_funcs)
-            self.graph.set_ranges(x_min, x_max, y_min, y_max)
-
-            # Пересечения
-            intersections = []
-            if len(final_funcs) == 2:
-                intersections = self.find_intersections(final_funcs[0], final_funcs[1], x_min, x_max)
-            self.graph.intersection_points = intersections
-
-            self.graph.draw()
-            self._show_intersection_card(intersections)
-
+            is_param = self.param_mode_switch.active
+            
+            print(f"\n{'='*60}")
+            print(f"🚀 ПОСТРОЕНИЕ ГРАФИКА: {'ПАРАМЕТРИЧЕСКИЙ' if is_param else 'ОБЫЧНЫЙ'} РЕЖИМ")
+            print(f"{'='*60}")
+        
+            if is_param:
+                # === ПАРАМЕТРИЧЕСКИЙ РЕЖИМ ===
+                self._plot_parametric()
+            else:
+                # === ОБЫЧНЫЙ РЕЖИМ ===
+                self._plot_standard()
+                
         except Exception as e:
             print(f"✗ Ошибка построения: {e}")
             import traceback
             traceback.print_exc()
     
+    def _plot_parametric(self):
+        """Построение параметрической кривой"""
+        x_expr = self.func_input1.text.strip()
+        y_expr = self.func_input2.text.strip()
+    
+        if not x_expr or not y_expr:
+            print("⚠️ Пустые выражения для параметрических функций")
+            return
+        
+        print(f"   x(t) = {x_expr}")
+        print(f"   y(t) = {y_expr}")
+        
+        # Получаем диапазон параметра t
+        t_min = float(self.t_min_input.text)
+        t_max = float(self.t_max_input.text)
+        print(f"   Диапазон параметра t: [{t_min}, {t_max}]")
+        
+        # Получаем ВИДИМУЮ ОБЛАСТЬ (не путать с диапазоном t!)
+        x_min = float(self.x_min_input.text)
+        x_max = float(self.x_max_input.text)
+        y_min = float(self.y_min_input.text)
+        y_max = float(self.y_max_input.text)
+        print(f"   Видимая область: X ∈ [{x_min}, {x_max}], Y ∈ [{y_min}, {y_max}]")
+        
+        # Проверяем, есть ли параметры (a, b, c) в выражениях
+        params = set()
+        params.update(self.extract_parameters(x_expr))
+        params.update(self.extract_parameters(y_expr))
+        
+        if params:
+            print(f"   ⚠️ Найдены параметры: {params}")
+            print(f"   Параметрические функции не должны содержать параметры кроме 't'!")
+            # Можно либо игнорировать, либо подставить значения
+            # Пока просто предупредим
+        
+        # Парсим функции
+        x_func, y_func = ParametricParser.parse(x_expr, y_expr)
+        
+        # Тестируем функции
+        print(f"\n   Тест функций:")
+        for t_test in [t_min, (t_min + t_max)/2, t_max]:
+            x_val = x_func(t_test)
+            y_val = y_func(t_test)
+            print(f"     t={t_test:.2f} → x={x_val:.2f}, y={y_val:.2f}")
+    
+        # Устанавливаем параметрическую функцию
+        self.graph.set_parametric(x_func, y_func, t_min, t_max)
+        self.graph.set_ranges(x_min, x_max, y_min, y_max)
+        self.graph.draw()
+        
+        print(f"   ✅ График построен")
+    
+        # Скрываем карточки, не относящиеся к параметрическому режиму
+        for card_name in ['param_card', 'intersection_card', 'analysis_card']:
+            if hasattr(self, card_name):
+                if getattr(self, card_name) in self.content_layout.children:
+                    self.content_layout.remove_widget(getattr(self, card_name))
+                delattr(self, card_name)
+    
+    def _plot_standard(self):
+        """Построение обычных функций f(x) и g(x)"""
+        expr1 = self.func_input1.text.strip()
+        expr2 = self.func_input2.text.strip()
+
+        funcs = []
+        all_params = set()
+
+        # Обрабатываем первую функцию
+        if expr1:
+            params1 = self.extract_parameters(expr1)
+            all_params.update(params1)
+            print(f"   Функция 1: {expr1}, параметры: {params1}")
+
+        # Обрабатываем вторую функцию
+        if expr2:
+            params2 = self.extract_parameters(expr2)
+            all_params.update(params2)
+            print(f"   Функция 2: {expr2}, параметры: {params2}")
+
+        # Обновляем слайдеры для параметров
+        if all_params:
+            print(f"   Все параметры: {all_params}")
+            if not hasattr(self, '_current_params') or set(self._current_params) != all_params:
+                self._current_params = list(all_params)
+                self.update_parameter_sliders(self._current_params)
+                # После создания слайдеров сразу строим график
+                self._rebuild_graph_with_current_params()
+                return
+
+        # Подставляем значения параметров и строим график
+        self._rebuild_graph_with_current_params()
+    
+    def _rebuild_graph_with_current_params(self):
+        """Перестраивает график с текущими параметрами из ОБЕИХ функций"""
+        expr1 = self.func_input1.text.strip()
+        expr2 = self.func_input2.text.strip()
+
+        if not expr1 and not expr2:
+            return
+
+        # Собираем все параметры
+        all_params = set()
+        if expr1:
+            all_params.update(self.extract_parameters(expr1))
+        if expr2:
+            all_params.update(self.extract_parameters(expr2))
+
+        # Подставляем значения параметров
+        final_funcs = []
+        for expr in [expr1, expr2]:
+            if not expr:
+                continue
+            expr_with_values = expr
+            for p in all_params:
+                if hasattr(self, f"{p}_slider"):
+                    val = getattr(self, f"{p}_slider").value
+                    val_rounded = round(val * 2) / 2
+                    expr_with_values = re.sub(rf'\b{p}\b', str(val_rounded), expr_with_values)
+            parser = FunctionParser()
+            final_funcs.append(parser.parse(expr_with_values))
+
+        if not final_funcs:
+            return
+
+        # Получаем ВИДИМУЮ ОБЛАСТЬ из полей ввода
+        x_min = float(self.x_min_input.text)
+        x_max = float(self.x_max_input.text)
+        y_min = float(self.y_min_input.text)
+        y_max = float(self.y_max_input.text)
+        
+        print(f"   Диапазоны: X=[{x_min}, {x_max}], Y=[{y_min}, {y_max}]")
+
+        self.graph.set_functions(final_funcs)
+        self.graph.set_ranges(x_min, x_max, y_min, y_max)
+
+        # Пересечения
+        intersections = []
+        if len(final_funcs) == 2:
+            intersections = self.find_intersections(final_funcs[0], final_funcs[1], x_min, x_max)
+        self.graph.intersection_points = intersections
+
+        self.graph.draw()
+        self._show_intersection_card(intersections)
+    
     def find_intersections(self, f1, f2, x_min, x_max, tolerance=1e-6):
         """Находит точки пересечения двух функций численно"""
         intersections = []
-        num_steps = 2000  # ↑ увеличено
+        num_steps = 2000
         step = (x_max - x_min) / num_steps
 
-        # Проверяем все отрезки
         for i in range(num_steps):
             x1 = x_min + i * step
             x2 = x1 + step
@@ -131,19 +260,16 @@ class GraphFunctionApp(MDApp):
                 diff1 = y1_1 - y1_2
                 diff2 = y2_1 - y2_2
 
-                # Если разность сменила знак — есть корень
                 if diff1 * diff2 < 0:
                     root = self.bisection_intersection(f1, f2, x1, x2, tolerance)
                     if root is not None:
                         y_val = f1(root)
                         intersections.append((root, y_val))
-                # Если значение близко к нулю — тоже корень
                 elif abs(diff1) < tolerance:
                     intersections.append((x1, y1_1))
             except:
                 continue
 
-        # Убираем дубликаты
         unique = []
         for x, y in intersections:
             if not any(abs(x - ux) < 0.1 for ux, uy in unique):
@@ -172,20 +298,39 @@ class GraphFunctionApp(MDApp):
             return None
 
     def reset_function(self, *args):
+        """Сброс всех полей и графика"""
+        print("\n🔄 СБРОС")
+        
         self.func_input1.text = ""
         self.func_input2.text = ""
         self.x_min_input.text = "-5"
         self.x_max_input.text = "5"
         self.y_min_input.text = "-5"
         self.y_max_input.text = "5"
+        self.t_min_input.text = "0"
+        self.t_max_input.text = "6.28"
+        
+        # Отключаем параметрический режим
+        self.param_mode_switch.active = False
+        
+        # Очищаем график
         self.graph.set_functions([])
+        self.graph.is_parametric = False
+        self.graph.x_func = None
+        self.graph.y_func = None
         self.graph.draw()
     
         # Удаляем карточки
         for attr_name in ['param_card', 'intersection_card', 'analysis_card']:
             if hasattr(self, attr_name):
-                self.content_layout.remove_widget(getattr(self, attr_name))
+                card = getattr(self, attr_name)
+                if card in self.content_layout.children:
+                    self.content_layout.remove_widget(card)
                 delattr(self, attr_name)
+        
+        # Скрываем карточку t_range
+        if hasattr(self, 't_range_card') and self.t_range_card in self.content_layout.children:
+            self.content_layout.remove_widget(self.t_range_card)
     
         # Удаляем все слайдеры и метки
         attrs_to_remove = [attr for attr in dir(self) if attr.endswith('_slider') or attr.endswith('_label')]
@@ -194,11 +339,13 @@ class GraphFunctionApp(MDApp):
     
         if hasattr(self, '_current_params'):
             delattr(self, '_current_params')
+        
+        print("   ✅ Сброс выполнен")
             
     def analyze_function(self, *args):
         """Анализирует ПЕРВУЮ функцию"""
         try:
-            expr = self.func_input1.text.strip()  # ← Берём ТОЛЬКО первую
+            expr = self.func_input1.text.strip()
             if not expr:
                 return
 
@@ -212,13 +359,8 @@ class GraphFunctionApp(MDApp):
             analyzer = FunctionAnalyzer(func, expr, x_min, x_max)
             analysis_text = analyzer.to_text()
 
-            # Удаляем старую карточку
             if hasattr(self, 'analysis_card'):
                 self.content_layout.remove_widget(self.analysis_card)
-
-            from kivymd.uix.card import MDCard
-            from kivymd.uix.label import MDLabel
-            from kivy.metrics import dp
 
             self.analysis_card = MDCard(
                 orientation="vertical",
@@ -252,7 +394,6 @@ class GraphFunctionApp(MDApp):
             from kivy.utils import platform
 
             if platform == 'android':
-                # Импортируем только на Android
                 from android.storage import app_storage_path
                 from jnius import autoclass
                 Environment = autoclass('android.os.Environment')
@@ -260,19 +401,15 @@ class GraphFunctionApp(MDApp):
                     Environment.DIRECTORY_DOWNLOADS
                 ).toString()
             else:
-                # На ПК сохраняем в ~/Downloads
                 dir_path = os.path.expanduser("~/Downloads")
 
-            # Убедимся, что папка существует
             os.makedirs(dir_path, exist_ok=True)
 
             filename = "graph_plot.png"
             full_path = os.path.join(dir_path, filename)
 
-            # Экспортируем график
             self.graph.export_to_png(full_path)
 
-            # Уведомление (только если не Linux)
             if platform != 'linux':
                 from kivymd.toast import toast
                 toast(f"Скриншот сохранён:\n{filename}")
@@ -283,32 +420,30 @@ class GraphFunctionApp(MDApp):
             print(f"❌ Ошибка сохранения: {e}")
             import traceback
             traceback.print_exc()
-            # Для Linux — просто выводим сообщение
-            if platform == 'linux':
-                print("⚠️ Toast не поддерживается на Linux")
-            else:
-                from kivymd.toast import toast
-                toast("Ошибка сохранения скриншота")
 
     def extract_parameters(self, expr):
-        """Извлекает параметры из выражения (все буквы, кроме x и функций)"""
+        """Извлекает параметры из выражения (все буквы, кроме x, t и функций)"""
         # Удаляем известные функции
         func_free = re.sub(
             r'\b(sin|cos|tan|asin|acos|atan|sqrt|log|exp|abs|pi|e)\b', 
             '', 
             expr.lower()
         )
-        # Находим все одиночные буквы (кроме 'x')
-        params = set(re.findall(r'\b([a-wyz])\b', func_free))
+        # Находим все одиночные буквы (кроме 'x' и 't')
+        params = set(re.findall(r'\b([a-su-wyz])\b', func_free))  # исключили 't'
         return sorted(params)
 
     def update_parameter_sliders(self, params):
+        """Создаёт слайдеры для параметров функции (не путать с параметром t!)"""
         # Удаляем старую карточку
         if hasattr(self, 'param_card'):
-            self.content_layout.remove_widget(self.param_card)
+            if self.param_card in self.content_layout.children:
+                self.content_layout.remove_widget(self.param_card)
 
         if not params:
             return
+
+        print(f"   Создаём слайдеры для параметров: {params}")
 
         # Создаём новую карточку
         self.param_card = MDCard(
@@ -320,7 +455,7 @@ class GraphFunctionApp(MDApp):
             radius=[10]
         )
 
-        title = MDLabel(text="Параметры:", role="medium", size_hint=(1, None), height=dp(30))
+        title = MDLabel(text="Параметры функции:", role="medium", size_hint=(1, None), height=dp(30))
         self.param_card.add_widget(title)
 
         for p in params:
@@ -340,7 +475,7 @@ class GraphFunctionApp(MDApp):
                 min=-10,
                 max=10,
                 value=current_value,
-                step=1,  # ← ДОБАВЛЕНО
+                step=1,
                 size_hint=(1, None),
                 height=dp(40)
             )
@@ -354,31 +489,24 @@ class GraphFunctionApp(MDApp):
             self.param_card.add_widget(label)
             self.param_card.add_widget(slider)
 
-        # === ВСТАВЛЯЕМ СРАЗУ ПОСЛЕ ГРАФИКА ===
-        graph_card = self.graph.parent  # это MDCard, содержащий GraphWidget
+        # Вставляем сразу после графика
+        graph_card = self.graph.parent
         try:
-            # children в обратном порядке, поэтому ищем с конца
             children_list = list(self.content_layout.children)
             graph_index = len(children_list) - 1 - children_list.index(graph_card)
             self.content_layout.add_widget(self.param_card, index=graph_index)
         except (ValueError, AttributeError):
-            # Если не нашли — добавляем в конец
             self.content_layout.add_widget(self.param_card)
     
     def _show_intersection_card(self, intersections):
         """Показывает карточку с точками пересечения"""
-        # Удаляем старую карточку
         if hasattr(self, 'intersection_card'):
-            self.content_layout.remove_widget(self.intersection_card)
+            if self.intersection_card in self.content_layout.children:
+                self.content_layout.remove_widget(self.intersection_card)
 
         if not intersections:
             return
 
-        from kivymd.uix.card import MDCard
-        from kivymd.uix.label import MDLabel
-        from kivy.metrics import dp
-
-        # Форматируем текст
         lines = ["Точки пересечения:"]
         for x, y in intersections:
             lines.append(f"• ({x:.2f}, {y:.2f})")
@@ -402,7 +530,6 @@ class GraphFunctionApp(MDApp):
         )
         self.intersection_card.add_widget(label)
 
-        # Вставляем карточку сразу после графика
         graph_card = self.graph.parent
         try:
             children_list = list(self.content_layout.children)
@@ -412,59 +539,16 @@ class GraphFunctionApp(MDApp):
             self.content_layout.add_widget(self.intersection_card)
 
     def _on_slider_change(self, param_name, label, value):
+        """Обработчик изменения слайдера параметра"""
         rounded_value = round(value * 2) / 2
         label.text = f"{param_name} = {rounded_value:.1f}"
-        self._rebuild_graph_with_current_params()  # ← вызываем новый метод
-    
-    def _rebuild_graph_with_current_params(self):
-        """Перестраивает график с текущими параметрами из ОБЕИХ функций"""
-        expr1 = self.func_input1.text.strip()
-        expr2 = self.func_input2.text.strip()
-
-        if not expr1 and not expr2:
-            return
-
-        # Собираем все параметры
-        all_params = set()
-        if expr1:
-            all_params.update(self.extract_parameters(expr1))
-        if expr2:
-            all_params.update(self.extract_parameters(expr2))
-
-        # Подставляем значения
-        final_funcs = []
-        for expr in [expr1, expr2]:
-            if not expr:
-                continue
-            expr_with_values = expr
-            for p in all_params:
-                if hasattr(self, f"{p}_slider"):
-                    val = getattr(self, f"{p}_slider").value
-                    val_rounded = round(val * 2) / 2
-                    expr_with_values = re.sub(rf'\b{p}\b', str(val_rounded), expr_with_values)
-            parser = FunctionParser()
-            final_funcs.append(parser.parse(expr_with_values))
-
-        # Обновляем график
-        x_min = float(self.x_min_input.text)
-        x_max = float(self.x_max_input.text)
-        y_min = float(self.y_min_input.text)
-        y_max = float(self.y_max_input.text)
-
-        self.graph.set_functions(final_funcs)
-        self.graph.set_ranges(x_min, x_max, y_min, y_max)
-
-        # Пересечения
-        intersections = []
-        if len(final_funcs) == 2:
-            intersections = self.find_intersections(final_funcs[0], final_funcs[1], x_min, x_max)
-        self.graph.intersection_points = intersections
-
-        self.graph.draw()
-        self._show_intersection_card(intersections)
+        # Перестраиваем график с новыми значениями параметров
+        self._rebuild_graph_with_current_params()
         
     def set_example(self, expr, ranges):
-        self.func_input.text = expr
+        """Устанавливает пример функции"""
+        self.func_input1.text = expr
+        self.func_input2.text = ""  # очищаем вторую функцию
         self.x_min_input.text = str(ranges[0])
         self.x_max_input.text = str(ranges[1])
         self.y_min_input.text = str(ranges[2])
