@@ -1,4 +1,6 @@
-# graph_widget.py (исправленная версия с поддержкой t_min/t_max)
+"""
+Виджет для рисования графика
+"""
 from kivy.uix.widget import Widget
 from kivy.graphics import Color, Line, Rectangle, Ellipse
 from kivy.metrics import dp
@@ -8,7 +10,6 @@ import math
 
 class GraphWidget(Widget):
     """Виджет для рисования графика"""
-    
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         self.function = None
@@ -29,7 +30,9 @@ class GraphWidget(Widget):
         self.bind(size=self.on_size, pos=self.on_size)
 
     def set_parametric(self, x_func, y_func, t_min=0, t_max=6.28):
-        """Устанавливает параметрические функции с диапазоном t"""
+        """
+        Устанавливает параметрические функции с диапазоном t
+        """
         print(f"🔧 GraphWidget.set_parametric вызван")
         print(f"   t ∈ [{t_min}, {t_max}]")
         self.is_parametric = True
@@ -44,7 +47,9 @@ class GraphWidget(Widget):
         self.draw()
 
     def set_functions(self, funcs):
-        """Устанавливает обычные функции"""
+        """
+        Устанавливает обычные функции
+        """
         self.is_parametric = False
         self.x_func = None
         self.y_func = None
@@ -52,7 +57,9 @@ class GraphWidget(Widget):
         self.intersection_points = []
 
     def set_ranges(self, x_min, x_max, y_min, y_max):
-        """Устанавливает видимую область графика"""
+        """
+        Устанавливает видимую область графика
+        """
         self.x_min = float(x_min)
         self.x_max = float(x_max)
         self.y_min = float(y_min)
@@ -63,7 +70,7 @@ class GraphWidget(Widget):
     def draw(self):
         self.canvas.clear()
         self.points = []
-    
+
         if not self.functions and not (self.is_parametric and self.x_func and self.y_func):
             return
 
@@ -86,52 +93,54 @@ class GraphWidget(Widget):
             self._draw_grid(square_x, square_y, square_size, square_size)
             Color(0.3, 0.3, 0.3, 1)
             self._draw_axes(square_x, square_y, square_size, square_size)
-    
+
             # Рисуем в зависимости от режима
             if self.is_parametric:
                 self._draw_parametric(square_x, square_y, square_size, square_size)
             else:
                 self._draw_function(square_x, square_y, square_size, square_size)
-    
+
             Color(0.8, 0.8, 0.8, 0.3)
             Line(rectangle=(square_x, square_y, square_size, square_size), width=1)
-    
+
     def _draw_parametric(self, area_x, area_y, area_size, area_height):
-        """Рисует параметрическую кривую x(t), y(t)"""
+        """
+        Рисует параметрическую кривую x(t), y(t)
+        """
         if not self.x_func or not self.y_func:
             print("⚠️ x_func или y_func не установлены!")
             return
-        
+
         print(f"\n🎨 === РИСУЕМ ПАРАМЕТРИЧЕСКУЮ КРИВУЮ ===")
         print(f"   Диапазон параметра t: [{self.t_min:.2f}, {self.t_max:.2f}]")
         print(f"   Видимая область X: [{self.x_min:.2f}, {self.x_max:.2f}]")
         print(f"   Видимая область Y: [{self.y_min:.2f}, {self.y_max:.2f}]")
-        
+
         with self.canvas:
             Color(0, 0.5, 1, 1)  # голубой
             points = []
-            
+
             num_points = 2000
             valid_points = 0
-            
+
             for i in range(num_points + 1):
                 t = self.t_min + (i / num_points) * (self.t_max - self.t_min)
                 try:
                     x = self.x_func(t)
                     y = self.y_func(t)
-                    
+
                     if i == 0:
                         print(f"   Первая точка: t={t:.2f} → x={x:.2f}, y={y:.2f}")
-                
+
                     if isinstance(x, (int, float)) and isinstance(y, (int, float)):
                         if not (math.isnan(x) or math.isnan(y) or math.isinf(x) or math.isinf(y)):
                             # Стандартное масштабирование
                             screen_x = self._x_to_screen(x, area_x, area_size)
                             screen_y = self._y_to_screen(y, area_y, area_size)
-                            
+
                             if i == 0:
                                 print(f"   На экране: screen_x={screen_x:.1f}, screen_y={screen_y:.1f}")
-                        
+
                             # Проверяем что точка в видимой области
                             if (area_x <= screen_x <= area_x + area_size and
                                 area_y <= screen_y <= area_y + area_size):
@@ -141,16 +150,16 @@ class GraphWidget(Widget):
                     if i == 0:
                         print(f"   ❌ Ошибка в первой точке: {e}")
                     continue
-                
+
             print(f"   ✅ Найдено {valid_points} валидных точек из {num_points}")
-            
+
             if len(points) >= 4:
                 Line(points=points, width=2.5, cap='round', joint='round')
                 print(f"   ✅ Кривая нарисована ({len(points)//2} точек)")
             else:
                 print(f"   ⚠️ Недостаточно точек для отрисовки!")
                 print(f"   Возможно, кривая вне видимой области [{self.x_min}, {self.x_max}] × [{self.y_min}, {self.y_max}]")
-    
+
     def _draw_grid(self, area_x, area_y, area_size, area_height):
         x_pixels_per_unit = area_size / (self.x_max - self.x_min)
         y_pixels_per_unit = area_size / (self.y_max - self.y_min)
@@ -189,7 +198,9 @@ class GraphWidget(Widget):
         return nice_fraction * (10 ** exponent)
 
     def _draw_axes(self, area_x, area_y, area_size, area_height):
-        """Рисует оси координат с подписями"""
+        """
+        Рисует оси координат с подписями
+        """
         # Ось X (где y=0)
         screen_y = self._y_to_screen(0, area_y, area_size)
         if area_y <= screen_y <= area_y + area_size:
@@ -215,7 +226,9 @@ class GraphWidget(Widget):
         self._draw_axis_labels(area_x, area_y, area_size, area_height)
 
     def _draw_axis_labels(self, area_x, area_y, area_size, area_height):
-        """Рисует текстовые подписи рядом с осями координат"""
+        """
+        Рисует текстовые подписи рядом с осями координат
+        """
         font_size = dp(12)
         label_color = (0.2, 0.2, 0.2, 1)
 
@@ -228,7 +241,7 @@ class GraphWidget(Widget):
             if abs(x) > 0.01:
                 screen_x = self._x_to_screen(x, area_x, area_size)
                 screen_y_axis_x = self._y_to_screen(0, area_y, area_size)
-            
+
                 if area_x <= screen_x <= area_x + area_size and area_y <= screen_y_axis_x <= area_y + area_size:
                     label = CoreLabel(
                         text=str(round(x, 2)),

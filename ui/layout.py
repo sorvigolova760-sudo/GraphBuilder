@@ -1,4 +1,6 @@
-# ui_layout.py (с поддержкой диапазона t для параметрических функций)
+"""
+Построение пользовательского интерфейса приложения
+"""
 from kivymd.uix.boxlayout import MDBoxLayout
 from kivymd.uix.label import MDLabel
 from kivymd.uix.textfield import MDTextField
@@ -9,9 +11,13 @@ from kivymd.uix.card import MDCard
 from kivymd.uix.selectioncontrol import MDSwitch
 from kivy.uix.scrollview import ScrollView
 from kivy.metrics import dp
-from graph_widget import GraphWidget
+from ui.widgets.graph_widget import GraphWidget
+
 
 def build_ui(app_instance):
+    """
+    Создает основной макет пользовательского интерфейса.
+    """
     root_layout = MDBoxLayout(
         orientation="vertical",
         padding=dp(10),
@@ -133,14 +139,14 @@ def build_ui(app_instance):
         height=dp(30)
     )
     app_instance.t_range_card.add_widget(t_title)
-    
+
     t_grid = MDGridLayout(cols=2, spacing=dp(10), size_hint=(1, None), height=dp(50))
     app_instance.t_min_input = MDTextField(text="0", hint_text="t min", mode="outlined", input_filter="float")
     app_instance.t_max_input = MDTextField(text="6.28", hint_text="t max", mode="outlined", input_filter="float")
     t_grid.add_widget(app_instance.t_min_input)
     t_grid.add_widget(app_instance.t_max_input)
     app_instance.t_range_card.add_widget(t_grid)
-    
+
     # НЕ добавляем сразу, будем показывать только в параметрическом режиме
 
     # === Кнопки в карточке с горизонтальной прокруткой ===
