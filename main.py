@@ -366,7 +366,7 @@ class GraphFunctionApp(MDApp):
                 orientation="vertical",
                 padding=dp(15),
                 size_hint=(1, None),
-                height=dp(300),
+                height=dp(350),
                 elevation=2,
                 radius=[10]
             )
@@ -377,7 +377,7 @@ class GraphFunctionApp(MDApp):
                 font_size="14sp",
                 theme_text_color="Primary",
                 size_hint_y=None,
-                height=dp(280)
+                height=dp(310)
             )
             self.analysis_card.add_widget(label)
             self.content_layout.add_widget(self.analysis_card)
