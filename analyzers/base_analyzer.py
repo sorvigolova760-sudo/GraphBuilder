@@ -1,9 +1,12 @@
 """
 Базовый класс для анализаторов функций
 """
+import logging
 import numpy as np
 import sympy as sp
 import re
+
+logger = logging.getLogger(__name__)
 
 
 class BaseAnalyzer:
@@ -72,21 +75,20 @@ class BaseAnalyzer:
         expr = re.sub(r'abs\*\(', r'abs(', expr)
         expr = re.sub(r'(\w+)\*\(', r'\1(', expr)
 
-        print(f"🔍 Выражение для sympy: '{expr}'")
+        logger.debug("Выражение для sympy: '%s'", expr)
 
         try:
             self.expr_sym = sp.sympify(expr, evaluate=True)
-            print(f"✅ Sympy выражение: {self.expr_sym}")
+            logger.debug("Sympy выражение: %s", self.expr_sym)
 
             # Вычисляем производную
             try:
                 self.derivative_sym = sp.diff(self.expr_sym, self.x_sym)
-                print(f"✅ Производная: {self.derivative_sym}")
+                logger.debug("Производная: %s", self.derivative_sym)
             except Exception as e:
-                print(f"⚠️ Не удалось вычислить производную: {e}")
+                logger.warning("Не удалось вычислить производную для '%s': %s", self.user_expr, e)
                 self.derivative_sym = None
-
         except Exception as e:
-            print(f"❌ Ошибка sympify: {e}")
+            logger.warning("Ошибка sympify для выражения '%s': %s", expr, e)
             self.expr_sym = None
             self.derivative_sym = None

@@ -26,17 +26,23 @@ class FunctionParser(BaseParser):
         # print(f"🔧 После обработки: '{processed_expr}'") # DEBUG
 
         # Создаем безопасную функцию, передавая имя переменной 'x'
-        safe_func = FunctionParser._create_safe_function(processed_expr, 'x')
+        try:
+            safe_func = FunctionParser._create_safe_function(processed_expr, 'x')
+        except Exception as e:
+            # В случае критической ошибки безопасности — логируем и возвращаем функцию, дающую NaN
+            import logging
+            logging.getLogger(__name__).warning("Parser rejected expression '%s': %s", expr, e)
+            def _nan(*args):
+                return float('nan')
+            return _nan
 
-        # Тестируем
-        # print(f"\n🔧 Тест парсера:") # DEBUG
+        # Тестируем (ошибки внутри safe_func уже обрабатываются и возвращают NaN)
         test_values = [0, 1.57, 3.14]
         for val in test_values:
             try:
-                y = safe_func(val)
-                # print(f"  f({val:.2f}) = {y}") # DEBUG
-            except Exception as e:
-                # print(f"  f({val:.2f}) = ERROR: {e}") # DEBUG
+                _ = safe_func(val)
+            except Exception:
+                # на всякий случай — не даем исключение наружу
                 pass
 
         return safe_func
